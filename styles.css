@@ -19,11 +19,14 @@ body {
 	margin-bottom: 1em;
 }
 
-#markdown-content a {
-	color: #0366d6;
-	text-decoration: none;
+a {
+	color: black;
 }
 
 #markdown-content a:hover {
 	text-decoration: underline;
+}
+
+.ending_soon {
+	color: red;
 }
