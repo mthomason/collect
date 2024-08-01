@@ -1,23 +1,18 @@
-
 import os
-from typing import Callable
-import json
-import time
+from dotenv import load_dotenv
+
 import hashlib
 import uuid
 import markdown
 from io import StringIO
-from dotenv import load_dotenv
-
-# import requests
-# import yaml
-
 
 from ebaysdk.finding import Connection as Finding
 from ebaysdk.exception import ConnectionError
 from markdown.extensions.attr_list import AttrListExtension
 from markdown.extensions.tables import TableExtension
 from datetime import datetime, timedelta
+
+from collect.apicache import APICache
 
 appid: uuid = uuid.UUID("27DC793C-9C69-4565-B611-9318933CA561")
 
@@ -32,46 +27,6 @@ if not EBAY_APPID or not EBAY_CERTID or not EBAY_DEVID:
 	msg: str = "Please set the EBAY_APPID, EBAY_CERTID, and EBAY_DEVID " \
 				"environment variables."
 	raise ValueError(msg)
-
-class APICache:
-	def __init__(self, cache_dir: str = "cache", cache_file: str = "api_cache.json", cache_ttl: int = 8 * 60 * 60):
-		self.cache_dir = cache_dir
-		self.cache_file = cache_file
-		self.cache_ttl = cache_ttl
-		if not os.path.exists(self.cache_dir):
-			os.makedirs(self.cache_dir)
-	
-	def cache_file_path(self) -> str:
-		return os.path.join(self.cache_dir, self.cache_file)
-
-	def load_cache(self) -> list[dict[str, any]]:
-		"""Load the cache from the file if it exists and is not expired."""
-		cache_file_path: str = self.cache_file_path()
-		if os.path.exists(cache_file_path):
-			with open(cache_file_path, 'r') as f:
-				cache_data: list[str, dict] = json.load(f)
-				if time.time() - cache_data['timestamp'] < self.cache_ttl:
-					return cache_data['data']
-		return []
-
-	def save_cache(self, data: list[dict[str, any]]):
-		"""Save the data to the cache file with the current timestamp."""
-		cache_data: dict[str, any] = {
-			'data': data,
-			'timestamp': time.time()
-		}
-		with open(self.cache_file_path(), 'w') as f:
-			json.dump(cache_data, f, indent=4)
-
-	def cached_api_call(self, func: Callable[[], list[dict[str, any]]], *args) -> list[dict[str, any]]:
-		"""Fetches data from the cache or calls the API function and caches the result."""
-		cached_data: list[dict[str, any]] = self.load_cache()
-		if cached_data:
-			return cached_data
-
-		api_data: list[dict[str, any]] = func(*args)
-		self.save_cache(api_data)
-		return api_data
 
 def search_top_watched_items(category_id: str, max_results: int=10) -> list[dict]:
 	try:
@@ -146,10 +101,6 @@ def search_results_to_markdown(items: list[dict]) -> str:
 
 				ctr += 1
 
-			#listing_type = item['listingInfo']['listingType']
-			#start_time = item['listingInfo']['startTime']
-	
-
 	else:
 		print("No items found or an error occurred.")
 
@@ -213,6 +164,7 @@ if __name__ == "__main__":
 	refresh_time: int = 8 * 60 * 60
 
 	search_top_items_from_catagory("212", "Trading Cards", refresh_time, buffer_md)
+	search_top_items_from_catagory("183050", "Non Sports", refresh_time, buffer_md)
 	search_top_items_from_catagory("259104", "Comics", refresh_time, buffer_md)
 	search_top_items_from_catagory("253", "Coins", refresh_time, buffer_md)
 	search_top_items_from_catagory("260", "Stamps", refresh_time, buffer_md)
