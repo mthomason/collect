@@ -1,3 +1,6 @@
+# /main.py
+# -*- coding: utf-8 -*-
+
 import os
 from dotenv import load_dotenv
 
@@ -13,13 +16,16 @@ from markdown.extensions.tables import TableExtension
 from datetime import datetime, timedelta
 
 from collect.apicache import APICache
+from collect.imagecache import ImageCache
 from collect.ebayapi import eBayAPI
+
+if not load_dotenv():
+	raise ValueError("Failed to load the .env file.")
 
 appid: uuid = uuid.UUID("27DC793C-9C69-4565-B611-9318933CA561")
 
-load_dotenv()
-
 def top_item_to_markdown(item_id: str, items: list[dict[str, any]]) -> str:
+	"""This is the most watched collectable item."""
 	item: dict[str, any] = None
 	for item in items:
 		if item['itemId'] == item_id:
@@ -40,8 +46,21 @@ def top_item_to_markdown(item_id: str, items: list[dict[str, any]]) -> str:
 	now: datetime = datetime.now(tz=end_datetime.tzinfo)
 
 	image_url = item['galleryURL']
+	
+	if image_url.endswith("s-l140.jpg"):
+		image_url = image_url.replace("s-l140.jpg", "s-l400.jpg")
+	
+	try:
+		image_cache = ImageCache(url=image_url, identifier=item_id)
+	except Exception as e:
+		image_cache = ImageCache(url=item['galleryURL'], identifier=item_id)
+		print(f"Error: {e}")
+
+	local_path = image_cache.get_image_path()
+
 	buffer.write("![image](")
-	buffer.write(image_url)
+	# buffer.write(image_url)
+	buffer.write(local_path)
 	buffer.write("){: .top_headline_image }\n\n")
 
 	buffer.write("**[")
@@ -51,7 +70,6 @@ def top_item_to_markdown(item_id: str, items: list[dict[str, any]]) -> str:
 	buffer.write("){: .top_headline }**\n\n")
 
 	return buffer.getvalue()
-
 
 def search_results_to_markdown(items: list[dict], exclude:list[str] = None) -> str:
 	buffer = StringIO()
@@ -182,8 +200,10 @@ def get_top_item_id(search_results: list[dict[str, any]]) -> str:
 if __name__ == "__main__":
 
 	buffer_md: StringIO = StringIO()
-	buffer_md.write("# Auctions {: .header_1 }\n\n")
 	refresh_time: int = 8 * 60 * 60
+	top_item_id: str = ""
+
+	buffer_html: StringIO = StringIO(initial_value="")
 
 	items_trading_cards: list[dict[str, any]] = search_top_items_from_catagory("212", ttl=refresh_time)
 	items_non_sports: list[dict[str, any]] = search_top_items_from_catagory("183050", ttl=refresh_time)
@@ -197,9 +217,13 @@ if __name__ == "__main__":
 	all_items.extend(items_coins)
 	all_items.extend(items_stamps)
 
-	top_item_id: str = get_top_item_id(all_items)
+	top_item_id = get_top_item_id(all_items)
 
 	top_item_md = top_item_to_markdown(top_item_id, all_items)
+
+	all_items.clear()
+
+	buffer_md.write("# Auctions {: .header_1 }\n\n")
 	buffer_md.write(top_item_md)
 	
 	write_top_items_md_to_buffer("Trading Cards", items_trading_cards, buffer_md, exclude=[top_item_id])
@@ -214,7 +238,6 @@ if __name__ == "__main__":
 	items_coins.clear()
 	items_stamps.clear()
 
-	buffer_html: StringIO = StringIO(initial_value="")
 	with open('templates/header.html', 'r', encoding="utf-8") as input_file:
 		buffer_html.write(input_file.read())
 

@@ -1,6 +1,10 @@
+# /collect/apicache.py
+# -*- coding: utf-8 -*-
+
 import os
 import json
 import time
+
 from typing import Callable
 
 class APICache:

@@ -1,3 +1,6 @@
+# /collect/ebayapi.py
+# -*- coding: utf-8 -*-
+
 import os
 from ebaysdk.finding import Connection as Finding
 from ebaysdk.exception import ConnectionError
@@ -37,3 +40,6 @@ class eBayAPI:
 			print(f"Error: {e}")
 			print(e.response.dict())
 			return []
+
+if __name__ == "__main__":
+	raise ValueError("This script is not meant to be run directly.")
