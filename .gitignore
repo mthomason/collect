@@ -1,0 +1,55 @@
+# Environment variables
+.env
+
+# Git files
+.git/hooks/
+.git/info/
+.git/logs/
+.git/objects/
+.git/refs/
+.git/description
+.git/refs/
+.git/config
+.git/HEAD
+
+# Generated files
+api_cache.json
+index.html
+cache/
+
+# Python bytecode
+*.pyc
+*.pyo
+*.pyd
+__pycache__/
+
+# Virtual environment
+venv/
+.env/
+
+# IDE and editor files
+.vscode/
+.idea/
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+
+# Distribution files
+build/
+dist/
+*.egg-info/
+*.egg
+
+# Log files
+*.log
+
+# Jupyter Notebook checkpoints
+.ipynb_checkpoints/
+
+# Miscellaneous
+*.DS_Store
+*.pytest_cache/
+*.coverage
+*.coverage.*
+*.hypothesis/
