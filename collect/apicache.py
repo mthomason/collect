@@ -42,3 +42,6 @@ class APICache:
 		api_data: list[dict[str, any]] = func(*args)
 		self.save_cache(api_data)
 		return api_data
+
+if __name__ == "__main__":
+	raise ValueError("This script is not meant to be run directly.")

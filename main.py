@@ -13,72 +13,66 @@ from markdown.extensions.tables import TableExtension
 from datetime import datetime, timedelta
 
 from collect.apicache import APICache
+from collect.ebayapi import eBayAPI
 
 appid: uuid = uuid.UUID("27DC793C-9C69-4565-B611-9318933CA561")
 
 load_dotenv()
 
-# eBay API credentials (these should be stored securely, not hardcoded in the code)
-EBAY_APPID = os.getenv('EBAY_APPID')
-EBAY_CERTID = os.getenv('EBAY_DEVID')
-EBAY_DEVID = os.getenv('EBAY_CERTID')
+def top_item_to_markdown(item_id: str, items: list[dict[str, any]]) -> str:
+	item: dict[str, any] = None
+	for item in items:
+		if item['itemId'] == item_id:
+			break
 
-if not EBAY_APPID or not EBAY_CERTID or not EBAY_DEVID:
-	msg: str = "Please set the EBAY_APPID, EBAY_CERTID, and EBAY_DEVID " \
-				"environment variables."
-	raise ValueError(msg)
+	if not item:
+		raise ValueError("Item not found in the list.")
 
-def search_top_watched_items(category_id: str, max_results: int=10) -> list[dict]:
-	try:
-		api: Finding = Finding(appid=EBAY_APPID, config_file=None, domain="svcs.ebay.com")
-	
-		request_params: dict[str, any] = {
-			'categoryId': category_id,
-			'outputSelector': 'WatchCount',
-			'paginationInput': {
-				'entriesPerPage': max_results
-			},
-			'sortOrder': 'WatchCountDecreaseSort',
-			'itemFilter': [
-				{'name': 'ListingType', 'value': 'Auction'}
-			]
-		}
-		
-		response = api.execute('findItemsAdvanced', request_params)
-		items = response.dict().get('searchResult', {}).get('item', [])
-		return items
+	buffer: StringIO = StringIO()
+	title: str = item['title']
+	watch_count: int = item['listingInfo']['watchCount']
+	price: float = item['sellingStatus']['currentPrice']['value']
+	currency: str = item['sellingStatus']['currentPrice']['_currencyId']
+	item_url: str = item['viewItemURL']
+	top_rated_listing: bool = bool(str.lower(item['topRatedListing']) in ['true', '1'])
+	end_time_string: str = item['listingInfo']['endTime']
+	end_datetime: datetime = datetime.strptime(end_time_string, "%Y-%m-%dT%H:%M:%S.%fZ")
+	now: datetime = datetime.now(tz=end_datetime.tzinfo)
 
-	except ConnectionError as e:
-		print(f"Error: {e}")
-		print(e.response.dict())
-		return []
+	image_url = item['galleryURL']
+	buffer.write("![image](")
+	buffer.write(image_url)
+	buffer.write("){: .top_headline_image }\n\n")
 
-def search_results_to_markdown(items: list[dict]) -> str:
+	buffer.write("**[")
+	buffer.write(title)
+	buffer.write("](")
+	buffer.write(item_url)
+	buffer.write("){: .top_headline }**\n\n")
+
+	return buffer.getvalue()
+
+
+def search_results_to_markdown(items: list[dict], exclude:list[str] = None) -> str:
 	buffer = StringIO()
 	if items:
 		item: dict = None
 
 		ctr: int = 0
 		for item in items:
+			if exclude and item['itemId'] in exclude:
+				continue
+
 			title = item['title']
 			watch_count = item['listingInfo']['watchCount']
 			price = item['sellingStatus']['currentPrice']['value']
 			currency = item['sellingStatus']['currentPrice']['_currencyId']
 			item_url = item['viewItemURL']
-			#image_url = item['galleryURL']
-			#location = item['location']
-			#condition = ""
-			#try:
-			#	condition = item['condition']['conditionDisplayName']
-			#except:
-			#	condition = "N/A"
 
 			top_rated_listing: bool = bool(str.lower(item['topRatedListing']) in ['true', '1'])
 			end_time_string: str = item['listingInfo']['endTime']
 			end_datetime: datetime = datetime.strptime(end_time_string, "%Y-%m-%dT%H:%M:%S.%fZ")
 			now: datetime = datetime.now(tz=end_datetime.tzinfo)
-
-
 
 			if end_datetime > now:
 
@@ -143,17 +137,45 @@ def get_unique_temp_file_path(prefix: str, extension: str) -> str:
 
 	return temp_file_path
 
-def search_top_items_from_catagory(category_id: str, category_name: str, ttl: int, buffer_md: StringIO) -> None:
+def search_top_items_from_catagory(category_id: str, ttl: int) -> list[dict[str, any]]:
 	file_name: str = str.join(".", [str.zfill(category_id, 6), "json"])
 	api_cache: APICache = APICache("cache", file_name, ttl)
-	search_results: list[dict[str, any]] = api_cache.cached_api_call(search_top_watched_items, category_id)
-	if search_results:
-		buffer_md.write(f"## {category_name}\n")
-		buffer_md.write(search_results_to_markdown(search_results))
-	else:
-		print(f"No items found in the {category_name} category.")
-	search_results.clear()
+	ebay_api: eBayAPI = eBayAPI()
 
+	search_results: list[dict[str, any]] = api_cache.cached_api_call(ebay_api.search_top_watched_items, category_id)
+	return search_results
+
+def write_top_items_md_to_buffer(category_name: str, search_results: list[dict[str, any]], buffer_md: StringIO, exclude: list[str] = None) -> None:
+	if not search_results:
+		raise ValueError("search_results is required.")
+	
+	buffer_md.write(f"## {category_name}\n")
+	buffer_md.write(search_results_to_markdown(search_results, exclude))
+
+	return None
+
+def get_top_item_id(search_results: list[dict[str, any]]) -> str:
+	if not search_results:
+		raise ValueError("search_results is required.")
+	
+	max_watch_count: int = 0
+	max_item_id: str = ""
+
+	for item in search_results:
+		watch_count = item['listingInfo']['watchCount']
+		watch_count_int: int = 0
+		#if watch_count is string, convert it to int
+		if type(watch_count) is str:
+			watch_count_int = int(watch_count)
+		else:
+			watch_count_int = watch_count
+		
+		if watch_count_int > max_watch_count:
+			max_watch_count = watch_count_int
+			max_item_id = item['itemId']
+
+	return max_item_id
+	
 '''
 	Main function
 '''
@@ -163,11 +185,34 @@ if __name__ == "__main__":
 	buffer_md.write("# Auctions {: .header_1 }\n\n")
 	refresh_time: int = 8 * 60 * 60
 
-	search_top_items_from_catagory("212", "Trading Cards", refresh_time, buffer_md)
-	search_top_items_from_catagory("183050", "Non Sports", refresh_time, buffer_md)
-	search_top_items_from_catagory("259104", "Comics", refresh_time, buffer_md)
-	search_top_items_from_catagory("253", "Coins", refresh_time, buffer_md)
-	search_top_items_from_catagory("260", "Stamps", refresh_time, buffer_md)
+	items_trading_cards: list[dict[str, any]] = search_top_items_from_catagory("212", ttl=refresh_time)
+	items_non_sports: list[dict[str, any]] = search_top_items_from_catagory("183050", ttl=refresh_time)
+	items_comics: list[dict[str, any]] = search_top_items_from_catagory("259104", ttl=refresh_time)
+	items_coins: list[dict[str, any]] = search_top_items_from_catagory("253", ttl=refresh_time)	
+	items_stamps: list[dict[str, any]] = search_top_items_from_catagory("260", ttl=refresh_time)
+
+	all_items: list[dict[str, any]] = items_trading_cards.copy()
+	all_items.extend(items_non_sports)
+	all_items.extend(items_comics)
+	all_items.extend(items_coins)
+	all_items.extend(items_stamps)
+
+	top_item_id: str = get_top_item_id(all_items)
+
+	top_item_md = top_item_to_markdown(top_item_id, all_items)
+	buffer_md.write(top_item_md)
+	
+	write_top_items_md_to_buffer("Trading Cards", items_trading_cards, buffer_md, exclude=[top_item_id])
+	write_top_items_md_to_buffer("Non Sports", items_non_sports, buffer_md, exclude=[top_item_id])
+	write_top_items_md_to_buffer("Comics", items_comics, buffer_md, exclude=[top_item_id])
+	write_top_items_md_to_buffer("Coins", items_coins, buffer_md, exclude=[top_item_id])
+	write_top_items_md_to_buffer("Stamps", items_stamps, buffer_md, exclude=[top_item_id])
+
+	items_trading_cards.clear()
+	items_non_sports.clear()
+	items_comics.clear()
+	items_coins.clear()
+	items_stamps.clear()
 
 	buffer_html: StringIO = StringIO(initial_value="")
 	with open('templates/header.html', 'r', encoding="utf-8") as input_file:

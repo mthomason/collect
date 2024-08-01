@@ -21,6 +21,7 @@ body {
 
 a {
 	color: black;
+	text-decoration: none;
 }
 
 #markdown-content a:hover {
@@ -29,4 +30,26 @@ a {
 
 .ending_soon {
 	color: red;
+}
+
+.ending_soon {
+	color: red;
+}
+.header_1 {
+	text-align: center;
+	font-size: 5em;
+	margin-bottom: 0;
+}
+
+a.top_headline {
+	font-size: 2.2em;
+	max-width: 60%;
+	text-align: center;
+	margin-left: auto;
+	margin-right: auto;
+	display: block;
+}
+
+img.top_headline_image {
+	margin-left: auto; margin-right: auto; display: block;
 }
