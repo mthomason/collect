@@ -17,6 +17,7 @@ from ebaysdk.finding import Connection as Finding
 from ebaysdk.exception import ConnectionError
 from markdown.extensions.attr_list import AttrListExtension
 from markdown.extensions.tables import TableExtension
+from datetime import datetime, timedelta
 
 appid: uuid = uuid.UUID("27DC793C-9C69-4565-B611-9318933CA561")
 
@@ -117,16 +118,37 @@ def search_results_to_markdown(items: list[dict]) -> str:
 			#except:
 			#	condition = "N/A"
 
-			buffer.write(" * [")
-			buffer.write(title)
-			buffer.write("](")
-			buffer.write(item_url)
-			buffer.write(")\n")
+			top_rated_listing: bool = bool(str.lower(item['topRatedListing']) in ['true', '1'])
+			end_time_string: str = item['listingInfo']['endTime']
+			end_datetime: datetime = datetime.strptime(end_time_string, "%Y-%m-%dT%H:%M:%S.%fZ")
+			now: datetime = datetime.now(tz=end_datetime.tzinfo)
+
+
+
+			if end_datetime > now:
+
+				if ctr == 0:
+					image_url = item['galleryURL']
+					buffer.write("![image](")
+					buffer.write(image_url)
+					buffer.write(")\n\n")
+
+				buffer.write(" * [")
+				buffer.write(title)
+				buffer.write("](")
+				buffer.write(item_url)
+
+				if end_datetime - now < timedelta(days=1):
+					buffer.write("){: .ending_soon}\n")
+				else:
+					buffer.write(")\n")
+				
+
+				ctr += 1
+
 			#listing_type = item['listingInfo']['listingType']
 			#start_time = item['listingInfo']['startTime']
-			#end_time = item['listingInfo']['endTime']
-
-			ctr += 1
+	
 
 	else:
 		print("No items found or an error occurred.")
@@ -192,16 +214,15 @@ if __name__ == "__main__":
 
 	search_top_items_from_catagory("212", "Trading Cards", refresh_time, buffer_md)
 	search_top_items_from_catagory("259104", "Comics", refresh_time, buffer_md)
-	search_top_items_from_catagory("11116", "Coins", refresh_time, buffer_md)
-	search_top_items_from_catagory("253", "Coins 2", refresh_time, buffer_md)
-	search_top_items_from_catagory("256", "Coins 3", refresh_time, buffer_md)
+	search_top_items_from_catagory("253", "Coins", refresh_time, buffer_md)
 	search_top_items_from_catagory("260", "Stamps", refresh_time, buffer_md)
 
 	buffer_html: StringIO = StringIO(initial_value="")
 	with open('templates/header.html', 'r', encoding="utf-8") as input_file:
 		buffer_html.write(input_file.read())
 
-	string_html_body: str = markdown.markdown(buffer_md.getvalue(), extensions=[AttrListExtension(), TableExtension()])
+	extensions: list[str] = ['attr_list', 'tables']
+	string_html_body: str = markdown.markdown(buffer_md.getvalue(), extensions=extensions)
 	buffer_html.write(string_html_body)
 	buffer_md.close()
 
