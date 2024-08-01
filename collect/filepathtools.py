@@ -2,6 +2,7 @@
 # -*- coding: utf-8 -*-
 
 import os
+import hashlib
 
 class FilePathTools:
 	def get_temp_dir() -> str:
@@ -13,7 +14,7 @@ class FilePathTools:
 		return temp_dir
 
 	def get_stable_temp_file_path(prefix: str, unique_id: str, extension: str) -> str:
-		temp_dir: str = get_temp_dir()
+		temp_dir: str = FilePathTools.get_temp_dir()
 
 		if not unique_id:
 			raise ValueError("unique_id is required.")
@@ -31,7 +32,7 @@ class FilePathTools:
 		return temp_file_path
 
 	def get_unique_temp_file_path(prefix: str, extension: str) -> str:
-		temp_dir: str = get_temp_dir()
+		temp_dir: str = FilePathTools.get_temp_dir()
 
 		if not extension.startswith('.'):
 			extension = '.' + extension
