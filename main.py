@@ -134,6 +134,7 @@ def write_top_items_md_to_buffer(category_name: str, search_results: list[dict[s
 	return None
 
 def get_top_item_id(search_results: list[dict[str, any]]) -> str:
+	"""Returns the item_id of the most watched item in the list."""
 	if not search_results:
 		raise ValueError("search_results is required.")
 	
@@ -143,7 +144,7 @@ def get_top_item_id(search_results: list[dict[str, any]]) -> str:
 	for item in search_results:
 		watch_count = item['listingInfo']['watchCount']
 		watch_count_int: int = 0
-		#if watch_count is string, convert it to int
+
 		if type(watch_count) is str:
 			watch_count_int = int(watch_count)
 		else:
