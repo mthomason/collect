@@ -1,0 +1,33 @@
+{
+	"name": "headlines_function",
+	"description": "Proof read the auction headlines and rewrite them for publication.  Maintain all the key details, but remove any unnecessary information, unnecessary capitalization, and unnecessary emoji.  Highlight the key details in the headline using markdown `**bold**` and `*italic*`.",
+	"parameters": {
+	  "type": "object",
+	  "properties": {
+		"headlines": {
+		  "type": "array",
+		  "description": "The headlines to file for publication.",
+		  "items": {
+			"type": "object",
+			"properties": {
+			  "headline": {
+				"type": "string",
+				"description": "A headline."
+			  },
+			  "link": {
+				"type": "string",
+				"description": "A link associated with the headline."
+			  }
+			},
+			"required": [
+			  "headline",
+			  "link"
+			]
+		  }
+		}
+	  },
+	  "required": [
+		"headlines"
+	  ]
+	}
+  }
