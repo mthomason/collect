@@ -6,7 +6,6 @@ import requests
 import os
 from io import StringIO
 import json
-from typing import List, Dict, Any
 from abc import ABC, abstractmethod
 
 class PromptPersonality(ABC):
@@ -44,7 +43,7 @@ class PromptPersonalityAuctioneer(PromptPersonality):
 	def generate_response(self, prompt: str) -> str:
 		return f"{self.name}: {prompt}"
 
-	def get_headlines(self, additional_prompt: str):
+	def get_headlines(self, additional_prompt: str) -> iter:
 		openai.api_key = os.getenv("OPENAI_API_KEY")
 		openai_model = "gpt-4-turbo"
 
@@ -52,13 +51,22 @@ class PromptPersonalityAuctioneer(PromptPersonality):
 		buffer_prompt.write(self.prompts[0])
 		buffer_prompt.write(additional_prompt)
 
-		prompt_messages: List[Dict[str, str]] = []
+		prompt_messages: list[dict[str, str]] = []
 		prompt_messages.append({"role": "system", "content": self.context})
 		prompt_messages.append({"role": "user", "content": buffer_prompt.getvalue()})
 
-		json_data: dict[str, any] = {"model": openai_model, "messages": prompt_messages}
+		json_data: dict[str, any] = {
+			"model": openai_model,
+			"messages": prompt_messages,
+		}
 
 		if self.functions:
+
+			#json_data["temperature"] = 0.3
+			#json_data["top_p"] = 0.9
+			#json_data["max_tokens"] = 100
+			#json_data["frequency_penalty"] = 0.5
+			#json_data["presence_penalty"] = 0.1
 			json_data["functions"] = self.functions
 			json_data["function_call"] = {"name": "headlines_function"}
 
@@ -84,6 +92,8 @@ class PromptPersonalityAuctioneer(PromptPersonality):
 
 # Example usage
 if __name__ == "__main__":
+	raise ValueError("This script is not meant to be run directly.")
+
 	auctioneer = PromptPersonalityAuctioneer()
 	additional_prompt = """
 ```html
@@ -104,4 +114,5 @@ if __name__ == "__main__":
 	headlines_iterator = auctioneer.get_headlines(additional_prompt)
 	for headline in headlines_iterator:
 		print(f"{headline['headline']}")
+		print(f"{headline['link']}")
 

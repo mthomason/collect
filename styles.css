@@ -41,6 +41,16 @@ a {
 	margin-bottom: 0;
 }
 
+.header_2 {
+	font-size: 2.2em;
+	margin-bottom: 0;
+}
+
+.header_3 {
+	font-size: 1.4em;
+	margin-bottom: 0;
+}
+
 a.top_headline {
 	font-size: 2.2em;
 	max-width: 60%;
@@ -53,3 +63,33 @@ a.top_headline {
 img.top_headline_image {
 	margin-left: auto; margin-right: auto; display: block;
 }
+
+.section {
+	margin-bottom: 20px; /* Adjust as needed for spacing between sections */
+}
+
+.content {
+	display: flex;
+	align-items: flex-start; /* Aligns image and list to the top */
+}
+
+.content > p {
+	text-align: center;
+	margin-right: 20px;
+	width: 150px
+}
+
+img {
+	margin-right: 20px; /* Space between the image and the list */
+}
+
+ul {
+	margin: 0;
+	padding: 0;
+	padding-top: 1em;
+	padding-left: 1em;
+	line-height: 1.3em;
+	list-style-type: none;
+}
+
+
