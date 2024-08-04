@@ -115,6 +115,8 @@ def search_results_to_markdown(items: list[dict], exclude:list[str] = None) -> s
 				continue
 			
 			title = headlines_ids.get(item_id)
+			if not title:
+				title = item['title']
 			#title = item['title']
 			watch_count = item['listingInfo']['watchCount']
 			price = item['sellingStatus']['currentPrice']['value']
