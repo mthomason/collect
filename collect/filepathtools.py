@@ -6,7 +6,7 @@ import hashlib
 import shutil
 from datetime import datetime
 
-class FilePathTools (object):
+class FilePathTools(object):
 
 	@staticmethod
 	def create_directory_if_not_exists(directory: str) -> None:

@@ -7,7 +7,6 @@ from ebaysdk.exception import ConnectionError
 
 class eBayAPI:
 	def __init__(self):
-		# eBay API credentials (these should be stored securely, not hardcoded in the code)
 		self.appid = os.getenv('EBAY_APPID')
 		self.certid = os.getenv('EBAY_CERTID')
 		self.devid = os.getenv('EBAY_DEVID')

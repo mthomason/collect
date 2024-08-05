@@ -5,13 +5,8 @@ from dotenv import load_dotenv
 
 import uuid
 import markdown
-import json
 from io import StringIO
 
-from ebaysdk.finding import Connection as Finding
-from ebaysdk.exception import ConnectionError
-from markdown.extensions.attr_list import AttrListExtension
-from markdown.extensions.tables import TableExtension
 from datetime import datetime, timedelta
 
 from collect.filepathtools import FilePathTools
@@ -22,6 +17,27 @@ from collect.promptchat import PromptPersonalityAuctioneer
 
 def top_item_to_markdown(item_id: str, items: list[dict[str, any]]) -> str:
 	"""This is the most watched collectable item."""
+	"""
+		Items is a list of dictionaries with keys:
+		- 'itemId': str
+		- 'title': str
+		- 'globalId': str
+		- 'subtitle': str
+		- 'primaryCategory': dict
+		- 'galleryURL': str
+		- 'viewItemURL': str
+		- 'autoPay': bool
+		- 'postalCode': str
+		- 'location': str
+		- 'country': str
+		- 'shippingInfo': dict
+		- 'sellingStatus': dict
+		- 'listingInfo': dict
+		- 'returnsAccepted': bool
+		- 'condition': dict
+		- 'isMultiVariationListing': bool
+		- 'topRatedListing': bool
+	"""
 	item: dict[str, any] = None
 	for item in items:
 		if item['itemId'] == item_id:
@@ -30,21 +46,18 @@ def top_item_to_markdown(item_id: str, items: list[dict[str, any]]) -> str:
 	if not item:
 		raise ValueError("Item not found in the list.")
 
+	"""Have the auctioneer generate a headline for the item."""
 	auctioneer: PromptPersonalityAuctioneer = PromptPersonalityAuctioneer()
-	auctioneer.add_headline(item['title'], item_id)
-	
+	auctioneer.add_headline(id=item_id, headline=item['title'])
 	headlines_iterator = auctioneer.get_headlines()
+
+	"""Get the first headline from the auctioneer.  There should only be one."""
 	title: str = ""
 	for headline in headlines_iterator:
 		title = headline['headline']
 		break
 
 	buffer: StringIO = StringIO()
-	#title: str = item['title']
-	#watch_count: int = item['listingInfo']['watchCount']
-	#price: float = item['sellingStatus']['currentPrice']['value']
-	#currency: str = item['sellingStatus']['currentPrice']['_currencyId']
-	#top_rated_listing: bool = bool(str.lower(item['topRatedListing']) in ['true', '1'])
 	item_url: str = item['viewItemURL']
 	end_time_string: str = item['listingInfo']['endTime']
 	end_datetime: datetime = datetime.strptime(end_time_string, "%Y-%m-%dT%H:%M:%S.%fZ")
@@ -71,7 +84,11 @@ def top_item_to_markdown(item_id: str, items: list[dict[str, any]]) -> str:
 	buffer.write(title)
 	buffer.write("](")
 	buffer.write(item_url)
-	buffer.write("){: .top_headline }**\n\n")
+
+	if end_datetime - now < timedelta(days=1):
+		buffer.write("){: .top_headline_ending_soon }**\n\n")
+	else:
+		buffer.write("){: .top_headline }**\n\n")
 
 	return buffer.getvalue()
 
@@ -88,7 +105,7 @@ def search_results_to_markdown(items: list[dict], exclude:list[str] = None) -> s
 			if exclude and item_id in exclude:
 				continue
 
-			auctioneer.add_headline(item['title'], item_id)
+			auctioneer.add_headline(id=item_id, headline=item['title'])
 
 		headlines_ids: dict[str, str] = {}
 		headlines_iterator = auctioneer.get_headlines()
@@ -102,14 +119,17 @@ def search_results_to_markdown(items: list[dict], exclude:list[str] = None) -> s
 			item_id = item['itemId']
 			if exclude and item_id in exclude:
 				continue
-			
+			"""_summary_
+				Item has these properties, and more:
+				- ['title']: str
+				- ['listingInfo']['watchCount']: int
+				- ['sellingStatus']['currentPrice']['value']: float
+				- ['sellingStatus']['currentPrice']['_currencyId']: str
+				- ['topRatedListing']: bool
+			"""
 			title = headlines_ids.get(item_id)
 			if not title:
 				title = item['title']
-			#watch_count = item['listingInfo']['watchCount']
-			#price = item['sellingStatus']['currentPrice']['value']
-			#currency = item['sellingStatus']['currentPrice']['_currencyId']
-			#top_rated_listing: bool = bool(str.lower(item['topRatedListing']) in ['true', '1'])
 
 			item_url = item['viewItemURL']
 			end_time_string: str = item['listingInfo']['endTime']

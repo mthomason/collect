@@ -27,7 +27,6 @@ class ImageCache:
 		if last_dot == -1:
 			raise ValueError("The URL does not contain a file extension.")
 		extension = path[last_dot:]
-		#extension: str = mimetypes.guess_extension(self.url)
 		filename = "".join([self.identifier, extension])
 		return filename
 

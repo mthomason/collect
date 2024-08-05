@@ -7,8 +7,8 @@ from datetime import datetime, timezone, timedelta
 from typing import Optional, Final, List, Dict
 
 class JSONDataCache:
-	_DATA_KEY_ID: Final[str] = "id"
-	_DATA_KEY_TITLE: Final[str] = "title"
+	_DATA_KEY_ID: Final[str] = "identifier"
+	_DATA_KEY_TITLE: Final[str] = "headline"
 	_DATA_KEY_TIMESTAMP: Final[str] = "timestamp"
 
 	def __init__(self, file_path: str, max_record_age: int = 14):
@@ -31,8 +31,11 @@ class JSONDataCache:
 	def _prune_old_records(self) -> None:
 		"""Remove records older than the specified max record age."""
 		threshold_date = datetime.now(timezone.utc) - timedelta(days=self.max_record_age)
-		threshold_date = datetime.now(timezone.utc) #- timedelta(days=self.max_record_age)
 		self._data = [record for record in self._data if datetime.fromisoformat(record[JSONDataCache._DATA_KEY_TIMESTAMP]) > threshold_date]
+		self._save_json_data()
+
+	def save(self) -> None:
+		"""Save the data to the JSON file."""
 		self._save_json_data()
 
 	def add_record_if_not_exists(self, title: str, record_id: str) -> None:
@@ -71,41 +74,34 @@ class JSONDataCache:
 		"""Prune old records and save the data."""
 		self._prune_old_records()
 
-# Example usage
 if __name__ == '__main__':
-	#raise ValueError("This script is not meant to be run directly.")
+	import sys
 
-	cache = JSONDataCache('cache/openai_cache_data.json')
+	def test_json_data_cache() -> None:
+		cache = JSONDataCache('cache/test_cache.json', max_record_age=1)
+		cache.add_record("Record 1", "1")
+		cache.add_record("Record 2", "2")
+		cache.add_record("Record 3", "3")
+		cache.add_record("Record 4", "4")
+		cache.add_record("Record 5", "5")
+		cache.save()
 
-	# Prune old records and save
-	cache.prune_and_save()
+		# Check that all records exist
+		assert cache.record_exists("1")
+		assert cache.record_exists("2")
+		assert cache.record_exists("3")
+		assert cache.record_exists("4")
+		assert cache.record_exists("5")
 
-	# Add a new record
-	cache.add_record_if_not_exists("Sample Title", "12345")
-	cache.add_record_if_not_exists("Sample Title", "12348")
-	cache.add_record_if_not_exists("Sample Title2", "12349")
-	cache.add_record_if_not_exists("Sample Title3", "1234asdf8")
-	cache.add_record_if_not_exists("Sample Title", "12345")
-	cache.add_record_if_not_exists("Sample Title", "12348")
-	cache.add_record_if_not_exists("Sample Title2", "12349")
-	cache.add_record_if_not_exists("Sample Title3", "1234asdf8")
+		# Check that a non-existent record does not exist
+		assert not cache.record_exists("6")
 
-	# Find a record by ID
-	record = cache.find_record_by_id("12345")
-	print("Record:")
-	print(record)
+		# Check that we can find a record by ID
+		record = cache.find_record_by_id("3")
+		assert record is not None
+		assert record[JSONDataCache._DATA_KEY_TITLE] == "Record 3"
 
-	# Check if a record exists
-	exists = cache.record_exists("12345")
-	print("Record exists:")
-	print(exists)
-
-	title1 = cache.find_title_by_id("12345")
-	print(title1)
-	title2 = cache.find_title_by_id("12346")
-	print(title2)
-	title3 = cache.find_title_by_id("12349")
-	print(title3)
-
-	cache.prune_and_save()
-
+	if len(sys.argv) > 1 and (sys.argv[1] == "-t" or sys.argv[1] == "--test"):
+		test_json_data_cache()
+	else:
+		raise ValueError("This script is not meant to be run directly.")

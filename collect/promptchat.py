@@ -4,8 +4,10 @@
 import openai
 import requests
 import os
-from io import StringIO
 import json
+
+from collect.jsondatacache import JSONDataCache
+from io import StringIO
 from abc import ABC, abstractmethod
 
 class PromptPersonality(ABC):
@@ -20,7 +22,13 @@ class PromptPersonality(ABC):
 		pass
 
 class PromptPersonalityAuctioneer(PromptPersonality):
+	_cache_pruned: bool = False
 	def __init__(self):
+		self._cache: JSONDataCache = JSONDataCache("cache/auctioneer_headlines.json")
+		if not self._cache_pruned:
+			self._cache.prune_and_save()
+			self._cache_pruned = True
+
 		self.headlines: list[dict[str, str]] = []
 		super().__init__("Auctioneer", "", [])
 		self.functions = None
@@ -42,7 +50,7 @@ class PromptPersonalityAuctioneer(PromptPersonality):
 		self.prompts = [self.prompt_start]
 
 	def add_headline(self, id: str, headline: str, ) -> None:
-		self.headlines.append({"id": id, "headline": headline})
+		self.headlines.append({"identifier": id, "headline": headline})
 
 	def clear_headlines(self) -> None:
 		self.headlines.clear()
@@ -50,7 +58,7 @@ class PromptPersonalityAuctioneer(PromptPersonality):
 	def additional_prompt(self) -> str:
 		buffer: StringIO = StringIO()
 		buffer.write("\n```json\n")
-		buffer.write(json.dumps(self.headlines))
+		buffer.write(json.dumps(self.headlines, indent="\t"))
 		buffer.write("```\n\n")
 		return buffer.getvalue()
 
@@ -58,74 +66,96 @@ class PromptPersonalityAuctioneer(PromptPersonality):
 		return f"{self.name}: {prompt}"
 
 	def get_headlines(self) -> iter:
-		openai.api_key = os.getenv("OPENAI_API_KEY")
-		openai_model = "gpt-4-turbo"
 
-		buffer_prompt = StringIO()
-		buffer_prompt.write(self.prompts[0])
-		buffer_prompt.write(self.additional_prompt())
+		requested_headline_ids: list[str] = [headline["identifier"] for headline in self.headlines]
+		uncached_headline_ids: list[str] = []
+		cached_headline_ids: list[str] = []
 
-		prompt_messages: list[dict[str, str]] = []
-		prompt_messages.append({"role": "system", "content": self.context})
-		prompt_messages.append({"role": "user", "content": buffer_prompt.getvalue()})
+		for headline_id in requested_headline_ids:
+			if not self._cache.record_exists(headline_id):
+				uncached_headline_ids.append(headline_id)
+			else:
+				cached_headline_ids.append(headline_id)
 
-		json_data: dict[str, any] = {
-			"model": openai_model,
-			"messages": prompt_messages,
-		}
+		assert (len(uncached_headline_ids) + len(cached_headline_ids)) == len(requested_headline_ids), "Mismatch in headline counts."
 
-		if self.functions:
-			json_data["functions"] = self.functions
-			json_data["function_call"] = {"name": "headlines_function"}
+		if (len(uncached_headline_ids) > 0):	# If there are uncached headlines, generate them
 
-		try:
-			url = "https://api.openai.com/v1/chat/completions"
-			headers = {
-				"Content-Type": "application/json",
-				"Authorization": "Bearer " + openai.api_key,
+			openai.api_key = os.getenv("OPENAI_API_KEY")
+			openai_model: str = "gpt-4-turbo"
+
+			buffer_prompt = StringIO()
+			buffer_prompt.write(self.prompts[0])
+			uncached_headlines: list[dict[str, str]] = []
+			for headline_id in uncached_headline_ids:
+				uncached_headlines.append(self.headlines[requested_headline_ids.index(headline_id)])
+
+			assert len(uncached_headlines) == len(uncached_headline_ids), "No uncached headlines found."
+
+			buffer_prompt.write("\n```json\n")
+			buffer_prompt.write(json.dumps(uncached_headlines, indent="\t"))
+			buffer_prompt.write("\n```\n\n")
+
+			print(f"Prompt: {buffer_prompt.getvalue()}")
+
+			prompt_messages: list[dict[str, str]] = []
+			prompt_messages.append({"role": "system", "content": self.context})
+			prompt_messages.append({"role": "user", "content": buffer_prompt.getvalue()})
+
+			json_data: dict[str, any] = {
+				"model": openai_model,
+				"messages": prompt_messages,
 			}
-			response = requests.post(url=url, headers=headers, json=json_data)
 
-			if response.status_code != 200:
-				print(f"Unable to generate response. Status Code: {response.status_code}. Response: {response.text}.")
+			if self.functions:
+				json_data["functions"] = self.functions
+				json_data["function_call"] = {"name": "headlines_function"}
+
+			try:
+				url = "https://api.openai.com/v1/chat/completions"
+				headers = {
+					"Content-Type": "application/json",
+					"Authorization": "Bearer " + openai.api_key,
+				}
+				response = requests.post(url=url, headers=headers, json=json_data)
+
+				if response.status_code != 200:
+					print(f"Unable to generate response. Status Code: {response.status_code}. Response: {response.text}.")
+					return iter([])
+
+				response_data_string: str = response.json()['choices'][0]['message']['function_call']['arguments']
+				response_data: dict[str, any] = json.loads(response_data_string)
+
+				# Cache the headlines
+				cache_ctr: int = 0
+				for headline in response_data['headlines']:
+					self._cache.add_record_if_not_exists(title=headline['headline'], record_id=headline['identifier'])
+					cache_ctr += 1
+
+				if cache_ctr > 0:
+					self._cache.save()
+
+				for headline_id in cached_headline_ids:
+					headline: dict = self._cache.find_record_by_id(headline_id)
+					if headline:
+						response_data['headlines'].append(headline)
+
+				return iter(response_data['headlines'])
+
+			except Exception as e:
+				print(f"Unable to generate response. Exception: {e}.")
 				return iter([])
-
-			response_data_string: str = response.json()['choices'][0]['message']['function_call']['arguments']
-			response_data: dict[str, any] = json.loads(response_data_string)
-			return iter(response_data['headlines'])
-
-		except Exception as e:
-			print(f"Unable to generate response. Exception: {e}.")
-			return iter([])
+			
+		else: # If all headlines are cached, return them
+			headlines: list[dict[str, str]] = []
+			for headline_id in requested_headline_ids:
+				headline: dict = self._cache.find_record_by_id(headline_id)
+				if headline:
+					headlines.append(headline)
+			return iter(headlines)
 
 	def __del__(self):
 		self.headlines.clear()
 
-
-
-# Example usage
 if __name__ == "__main__":
 	raise ValueError("This script is not meant to be run directly.")
-
-	auctioneer = PromptPersonalityAuctioneer()
-	additional_prompt = """
-```html
-<ul>
-<li><a class="ending_soon" href="https://www.ebay.com/itm/2006-Topps-Chrome-Gold-Superfractors-309-Justin-Verlander-RC-Rookie-1-1-BGS-9-5-/145896558154">2006 Topps Chrome Gold Superfractors #309 Justin Verlander RC Rookie 1/1 BGS 9.5</a></li>
-<li><a class="ending_soon" href="https://www.ebay.com/itm/2007-08-UD-Chronology-Autographs-Gold-Michael-Jordan-AUTO-03-10-BGS-9-MINT-BULLS-/135152362719">2007-08 UD Chronology Autographs Gold Michael Jordan AUTO 03/10 BGS 9 MINT BULLS</a></li>
-<li><a href="https://www.ebay.com/itm/2024-Panini-National-NSCC-Silver-Pack-Caitlin-Clark-Black-Rookies-RC-1-1-/126598347732">2024 Panini The National NSCC Silver Pack Caitlin Clark Black Rookies RC # 1/1</a></li>
-<li><a href="https://www.ebay.com/itm/2023-Upper-Deck-Allure-B-5-Connor-Bedard-16-Bit-Rookie-SSP-Case-Hit-PSA-10-/204909995606">2023 Upper Deck Allure #B-5 Connor Bedard 16-Bit Rookie SSP Case Hit PSA 10</a></li>
-<li><a href="https://www.ebay.com/itm/2023-24-Prizm-Victor-Wembanyama-Gold-Sparkle-Rookie-01-24-Jersey-d-1-1-PSA-10-/375561269928">2023-24 Prizm Victor Wembanyama Gold Sparkle Rookie #01/24 Jersey #d 1/1 PSA 10</a></li>
-<li><a href="https://www.ebay.com/itm/1956-Topps-135-Mickey-Mantle-Yankees-HOF-Gray-Back-PSA-8-LOOKS-NICER-/365032399222">1956 Topps #135 Mickey Mantle Yankees HOF Gray Back PSA 8 " LOOKS NICER "</a></li>
-<li><a href="https://www.ebay.com/itm/2023-Panini-Select-Football-C-J-Stroud-RC-Zebra-Prizm-Die-Cut-SSP-/135167700301">2023 Panini Select Football C.J. Stroud RC Zebra Prizm Die Cut SSP 🔥🔥</a></li>
-<li><a href="https://www.ebay.com/itm/Wayne-Gretzky-HOF-Signed-1979-O-Pee-Chee-OPC-Hockey-18-RC-PSA-6-PSA-DNA-10-AUTO-/365032835147">Wayne Gretzky HOF Signed 1979 O-Pee-Chee OPC Hockey #18 RC PSA 6 PSA/DNA 10 AUTO</a></li>
-<li><a href="https://www.ebay.com/itm/2002-03-Ultimate-Michael-Jordan-BuyBack-Auto-SP-Game-Floor-Autograph-8-PSA-10-/395561205574">2002-03 Ultimate Michael Jordan BuyBack Auto SP Game Floor Autograph #/8 PSA 10</a></li>
-</ul>
-```
-					 
-"""
-	headlines_iterator = auctioneer.get_headlines(additional_prompt)
-	for headline in headlines_iterator:
-		print(f"{headline['headline']}")
-		print(f"{headline['link']}")
-

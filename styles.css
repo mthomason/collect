@@ -51,7 +51,7 @@ a {
 	margin-bottom: 0;
 }
 
-a.top_headline {
+a.top_headline, a.top_headline_ending_soon {
 	font-size: 2.2em;
 	max-width: 60%;
 	text-align: center;
@@ -60,17 +60,21 @@ a.top_headline {
 	display: block;
 }
 
+a.top_headline_ending_soon {
+	color: red;
+}
+
 img.top_headline_image {
 	margin-left: auto; margin-right: auto; display: block;
 }
 
 .section {
-	margin-bottom: 20px; /* Adjust as needed for spacing between sections */
+	margin-bottom: 20px;
 }
 
 .content {
 	display: flex;
-	align-items: flex-start; /* Aligns image and list to the top */
+	align-items: flex-start;
 }
 
 .content > p {
@@ -80,7 +84,7 @@ img.top_headline_image {
 }
 
 img {
-	margin-right: 20px; /* Space between the image and the list */
+	margin-right: 20px;
 }
 
 ul {
