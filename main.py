@@ -153,13 +153,6 @@ def search_results_to_markdown(items: list[dict], exclude:list[str] = None) -> s
 
 				ctr += 1
 
-
-		#if ctr > 0:
-		#	buffer.write("</td></tr></table>\n")
-		#else:
-		#	print("No items found or an error occurred.")
-
-	#buffer.write("</td></tr></table>\n\n")
 	return buffer.getvalue()
 
 def search_top_items_from_catagory(category_id: str, ttl: int) -> list[dict[str, any]]:
