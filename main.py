@@ -5,6 +5,7 @@ from dotenv import load_dotenv
 
 import uuid
 import markdown
+import json
 from io import StringIO
 
 from ebaysdk.finding import Connection as Finding
@@ -13,16 +14,11 @@ from markdown.extensions.attr_list import AttrListExtension
 from markdown.extensions.tables import TableExtension
 from datetime import datetime, timedelta
 
+from collect.filepathtools import FilePathTools
 from collect.apicache import APICache
 from collect.imagecache import ImageCache
 from collect.ebayapi import eBayAPI
 from collect.promptchat import PromptPersonalityAuctioneer
-
-if not load_dotenv():
-	raise ValueError("Failed to load the .env file.")
-
-app_id: uuid = uuid.UUID("27DC793C-9C69-4565-B611-9318933CA561")
-app_name: str = "Hobby Report"
 
 def top_item_to_markdown(item_id: str, items: list[dict[str, any]]) -> str:
 	"""This is the most watched collectable item."""
@@ -34,8 +30,25 @@ def top_item_to_markdown(item_id: str, items: list[dict[str, any]]) -> str:
 	if not item:
 		raise ValueError("Item not found in the list.")
 
+	auctioneer: PromptPersonalityAuctioneer = PromptPersonalityAuctioneer()
+	buffer_additional_prompt: StringIO = StringIO()
+	buffer_additional_prompt.write("\n```json\n")
+	headlines: list[dict[str, str]] = []
+	headline: dict[str, str] = {item["title"] : item_id}
+	headlines.append({item["title"] : item_id})
+	headline.clear()
+	buffer_additional_prompt.write(json.dumps(headlines))
+	buffer_additional_prompt.write("```\n\n")
+	headlines_iterator = auctioneer.get_headlines(
+		additional_prompt=buffer_additional_prompt.getvalue()
+	)
+	title: str = ""
+	for headline in headlines_iterator:
+		title = headline['headline']
+		break
+
 	buffer: StringIO = StringIO()
-	title: str = item['title']
+	#title: str = item['title']
 	watch_count: int = item['listingInfo']['watchCount']
 	price: float = item['sellingStatus']['currentPrice']['value']
 	currency: str = item['sellingStatus']['currentPrice']['_currencyId']
@@ -59,7 +72,6 @@ def top_item_to_markdown(item_id: str, items: list[dict[str, any]]) -> str:
 	local_path = image_cache.get_image_path()
 
 	buffer.write("![image](")
-	# buffer.write(image_url)
 	buffer.write(local_path)
 	buffer.write("){: .top_headline_image }\n\n")
 
@@ -78,34 +90,27 @@ def search_results_to_markdown(items: list[dict], exclude:list[str] = None) -> s
 		item_id: str = ""
 		ctr: int = 0
 
-		auctioneer = PromptPersonalityAuctioneer()
+		auctioneer: PromptPersonalityAuctioneer = PromptPersonalityAuctioneer()
 
 		buffer_additional_prompt: StringIO = StringIO()
-		buffer_additional_prompt.write("\n```xml\n")
-		buffer_additional_prompt.write("{\n")
-		buffer_additional_prompt.write("<headlines>\n")
-
-		# Generate additional prompt for the auctioneer
+		buffer_additional_prompt.write("\n```json\n")
+		headlines: list[dict[str, str]] = []
 		for item in items:
 			item_id = item['itemId']
 			if exclude and item_id in exclude:
 				continue
-
-			title = item['title']
-			buffer_additional_prompt.write("  <headline>\n")
-			buffer_additional_prompt.write("    <title>")
-			buffer_additional_prompt.write(title)
-			buffer_additional_prompt.write("</title>\n")
-			buffer_additional_prompt.write("    <item_id>")
-			buffer_additional_prompt.write(item_id)
-			buffer_additional_prompt.write("</item_id>\n")
-			buffer_additional_prompt.write("    </headline>\n")
-
-		buffer_additional_prompt.write("</headlines>\n``\n\n`")
+			headline: dict[str, str] = {item["title"] : item_id}
+			headlines.append({item["title"] : item_id})
+			headline.clear()
+		buffer_additional_prompt.write(json.dumps(headlines))
+		buffer_additional_prompt.write("```\n\n")
 
 		headlines_ids: dict[str, str] = {}
 
-		headlines_iterator = auctioneer.get_headlines(buffer_additional_prompt.getvalue())
+		headlines_iterator = auctioneer.get_headlines(
+			additional_prompt=buffer_additional_prompt.getvalue()
+		)
+
 		for headline in headlines_iterator:
 			headlines_ids[headline['identifier']] = headline['headline']
 
@@ -201,6 +206,14 @@ def get_top_item_id(search_results: list[dict[str, any]]) -> str:
 '''
 if __name__ == "__main__":
 
+	# Program Initalization
+	if not load_dotenv():
+		raise ValueError("Failed to load the .env file.")
+
+	# Set Inital Values
+	app_id: uuid = uuid.UUID("27DC793C-9C69-4565-B611-9318933CA561")
+	app_name: str = "Hobby Report"
+
 	buffer_md: StringIO = StringIO()
 	refresh_time: int = 8 * 60 * 60
 	top_item_id: str = ""
@@ -226,89 +239,43 @@ if __name__ == "__main__":
 
 	all_items.clear()
 
+	# Write the HTML header
 	with open('templates/header.html', 'r', encoding="utf-8") as input_file:
 		buffer_html.write(input_file.read())
 
-
+	# Write the markdown header
 	buffer_md.write("# Hobby Report {: .header_1 }\n\n")
 	buffer_md.write(top_item_md)
 
 	buffer_md.write("## Auctions {: .header_2 }\n\n")
 
-
 	buffer_html.write(markdown.markdown(buffer_md.getvalue(), extensions=extensions))
 	buffer_md.seek(0)
 	buffer_md.truncate(0)
 
-	buffer_html.write("<div class=\"section\">\n")
-	buffer_md.write("\n")
-	buffer_md.write("### Trading Cards {: .header_3 }\n\n")
-	buffer_html.write(markdown.markdown(buffer_md.getvalue(), extensions=extensions))
-	buffer_md.seek(0)
-	buffer_md.truncate(0)
-	buffer_html.write("<div class=\"content\">\n")
-	write_top_items_md_to_buffer("Trading Cards", items_trading_cards, buffer_md, exclude=[top_item_id])
-	buffer_html.write(markdown.markdown(buffer_md.getvalue(), extensions=extensions))
-	buffer_html.write("</div>\n")
-	buffer_html.write("</div>\n")
-	buffer_md.seek(0)
-	buffer_md.truncate(0)
+	sections: list[dict[str, object]] = [
+			{"header": "Trading Cards", "items": items_trading_cards, "exclude": [top_item_id]},
+			{"header": "Non Sports", "items": items_non_sports, "exclude": [top_item_id]},
+			{"header": "Comics", "items": items_comics, "exclude": [top_item_id]},
+			{"header": "Coins", "items": items_coins, "exclude": [top_item_id]},
+			{"header": "Stamps", "items": items_stamps, "exclude": [top_item_id]},
+		]
 
-
-	buffer_html.write("<div class=\"section\">")
-	buffer_md.write("\n")
-	buffer_md.write("### Non Sports {: .header_3 }\n\n")
-	buffer_html.write(markdown.markdown(buffer_md.getvalue(), extensions=extensions))
-	buffer_md.seek(0)
-	buffer_md.truncate(0)
-	buffer_html.write("<div class=\"content\">\n")
-	write_top_items_md_to_buffer("Non Sports", items_non_sports, buffer_md, exclude=[top_item_id])
-	buffer_html.write(markdown.markdown(buffer_md.getvalue(), extensions=extensions))
-	buffer_html.write("</div>\n")
-	buffer_html.write("</div>\n")
-	buffer_md.seek(0)
-	buffer_md.truncate(0)
-
-
-	buffer_html.write("<div class=\"section\">\n")
-	buffer_md.write("\n### Comics {: .header_3 }\n\n")
-	buffer_html.write(markdown.markdown(buffer_md.getvalue(), extensions=extensions))
-	buffer_md.seek(0)
-	buffer_md.truncate(0)
-	buffer_html.write("<div class=\"content\">\n")
-	write_top_items_md_to_buffer("Comics", items_comics, buffer_md, exclude=[top_item_id])
-	buffer_html.write(markdown.markdown(buffer_md.getvalue(), extensions=extensions))
-	buffer_html.write("</div>\n")
-	buffer_html.write("</div>\n")
-	buffer_md.seek(0)
-	buffer_md.truncate(0)
-
-
-	buffer_html.write("<div class=\"section\">\n")
-	buffer_md.write("\n### Coins {: .header_3 }\n\n")
-	buffer_html.write(markdown.markdown(buffer_md.getvalue(), extensions=extensions))
-	buffer_md.seek(0)
-	buffer_md.truncate(0)
-	buffer_html.write("<div class=\"content\">\n")
-	write_top_items_md_to_buffer("Coins", items_coins, buffer_md, exclude=[top_item_id])
-	buffer_html.write(markdown.markdown(buffer_md.getvalue(), extensions=extensions))
-	buffer_html.write("</div>\n")
-	buffer_html.write("</div>\n")
-	buffer_md.seek(0)
-	buffer_md.truncate(0)
-
-	buffer_html.write("<div class=\"section\">\n")
-	buffer_md.write("\n### Stamps {: .header_3 }\n\n")
-	buffer_html.write(markdown.markdown(buffer_md.getvalue(), extensions=extensions))
-	buffer_md.seek(0)
-	buffer_md.truncate(0)
-	buffer_html.write("<div class=\"content\">\n")
-	write_top_items_md_to_buffer("Stamps", items_stamps, buffer_md, exclude=[top_item_id])
-	buffer_html.write(markdown.markdown(buffer_md.getvalue(), extensions=extensions))
-	buffer_html.write("</div>\n")
-	buffer_html.write("</div>\n")
-	buffer_md.seek(0)
-	buffer_md.truncate(0)
+	for section in sections:
+		buffer_html.write("<div class=\"section\">\n")
+		buffer_md.write("\n### ")
+		buffer_md.write(section['header'])
+		buffer_md.write(" {: .header_3 }\n\n")
+		buffer_html.write(markdown.markdown(buffer_md.getvalue(), extensions=extensions))
+		buffer_md.seek(0)
+		buffer_md.truncate(0)
+		buffer_html.write("<div class=\"content\">\n")
+		write_top_items_md_to_buffer(section['header'], section['items'], buffer_md, exclude=section['exclude'])
+		buffer_html.write(markdown.markdown(buffer_md.getvalue(), extensions=extensions))
+		buffer_html.write("</div>\n")
+		buffer_html.write("</div>\n")
+		buffer_md.seek(0)
+		buffer_md.truncate(0)
 
 	items_trading_cards.clear()
 	items_non_sports.clear()
@@ -316,8 +283,6 @@ if __name__ == "__main__":
 	items_coins.clear()
 	items_stamps.clear()
 
-	#string_html_body: str = markdown.markdown(buffer_md.getvalue(), extensions=extensions)
-	#buffer_html.write(string_html_body)
 	buffer_md.close()
 
 	with open('templates/footer.html', 'r', encoding="utf-8") as file:
@@ -327,5 +292,6 @@ if __name__ == "__main__":
 	with open('index.html', 'w', encoding="utf-8") as file:
 		file.write(buffer_html.getvalue())
 
-	#Print the html
-	#print(buffer_html.getvalue())
+	#Backup the file
+	FilePathTools.create_directory_if_not_exists("backup")
+	FilePathTools.backup_file("index.html", "backup")

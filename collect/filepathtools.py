@@ -3,8 +3,34 @@
 
 import os
 import hashlib
+import shutil
+from datetime import datetime
 
-class FilePathTools:
+class FilePathTools (object):
+
+	@staticmethod
+	def create_directory_if_not_exists(directory: str) -> None:
+		if not os.path.exists(directory):
+			os.makedirs(directory)
+
+	@staticmethod
+	def backup_file(file_path: str, backup_location: str) -> None:
+		if not os.path.isfile(file_path):
+			raise FileNotFoundError(f"The file {file_path} does not exist.")
+
+		if not os.path.isdir(backup_location):
+			raise NotADirectoryError(f"The directory {backup_location} does not exist.")
+
+		file_name: str = os.path.basename(file_path)
+		name, ext = os.path.splitext(file_name)
+		date_time_str = datetime.now().strftime("%Y%m%d_%H%M%S")
+		backup_file_name = f"{name}_{date_time_str}{ext}"
+		backup_path = os.path.join(backup_location, backup_file_name)
+
+		shutil.copy2(file_path, backup_path)
+		print(f"File copied to {backup_path}")
+
+	@staticmethod
 	def get_temp_dir() -> str:
 		temp_dir: str = os.getenv('TMPDIR') or os.getenv('TEMP') or os.getenv('TMP') or '/tmp'
 		if not os.path.exists(temp_dir):
@@ -13,6 +39,7 @@ class FilePathTools:
 			raise ValueError("Cannot determine the temporary directory.")
 		return temp_dir
 
+	@staticmethod
 	def get_stable_temp_file_path(prefix: str, unique_id: str, extension: str) -> str:
 		temp_dir: str = FilePathTools.get_temp_dir()
 
@@ -31,6 +58,7 @@ class FilePathTools:
 
 		return temp_file_path
 
+	@staticmethod
 	def get_unique_temp_file_path(prefix: str, extension: str) -> str:
 		temp_dir: str = FilePathTools.get_temp_dir()
 
