@@ -140,6 +140,7 @@ def search_results_to_markdown(items: list[dict], exclude:list[str] = None) -> s
 
 				if ctr == 0:
 					image_url = item['galleryURL']
+
 					buffer.write("![image](")
 					buffer.write(image_url)
 					buffer.write(")\n\n")
@@ -158,19 +159,19 @@ def search_results_to_markdown(items: list[dict], exclude:list[str] = None) -> s
 
 	return buffer.getvalue()
 
-def search_top_items_from_catagory(category_id: str, ttl: int) -> list[dict[str, any]]:
+def search_top_items_from_catagory(category_id: str, ttl: int, max_results: int) -> list[dict[str, any]]:
 	file_name: str = str.join(".", [str.zfill(category_id, 6), "json"])
 	api_cache: APICache = APICache("cache", file_name, ttl)
 	ebay_api: eBayAPI = eBayAPI()
-
-	search_results: list[dict[str, any]] = api_cache.cached_api_call(ebay_api.search_top_watched_items, category_id)
+	search_results: list[dict[str, any]] = api_cache.cached_api_call(ebay_api.search_top_watched_items, category_id, max_results)
 	return search_results
 
-def write_top_items_md_to_buffer(category_name: str, search_results: list[dict[str, any]], buffer_md: StringIO, exclude: list[str] = None) -> None:
+def write_top_items_md_to_buffer(search_results: list[dict[str, any]], buffer_md: StringIO, exclude: list[str] = None) -> None:
 	if not search_results:
 		raise ValueError("search_results is required.")
 	
-	buffer_md.write(search_results_to_markdown(search_results, exclude))
+	md_from_search_results: str = search_results_to_markdown(search_results, exclude)
+	buffer_md.write(md_from_search_results)
 
 	return None
 
@@ -217,16 +218,24 @@ if __name__ == "__main__":
 	buffer_html: StringIO = StringIO(initial_value="")
 	extensions: list[str] = ['attr_list']
 
-	items_trading_cards: list[dict[str, any]] = search_top_items_from_catagory("212", ttl=refresh_time)
-	items_non_sports: list[dict[str, any]] = search_top_items_from_catagory("183050", ttl=refresh_time)
-	items_comics: list[dict[str, any]] = search_top_items_from_catagory("259104", ttl=refresh_time)
-	items_coins: list[dict[str, any]] = search_top_items_from_catagory("253", ttl=refresh_time)	
-	items_stamps: list[dict[str, any]] = search_top_items_from_catagory("260", ttl=refresh_time)
+	items_trading_cards: list[dict[str, any]] = search_top_items_from_catagory("212", ttl=refresh_time, max_results=11)
+	items_non_sports: list[dict[str, any]] = search_top_items_from_catagory("183050", ttl=refresh_time, max_results=10)
+	items_comics: list[dict[str, any]] = search_top_items_from_catagory("259104", ttl=refresh_time, max_results=10)
+	items_fossles: list[dict[str, any]] = search_top_items_from_catagory("3213", ttl=refresh_time, max_results=6)
+	items_coins: list[dict[str, any]] = search_top_items_from_catagory("253", ttl=refresh_time, max_results=6)
+	items_bobbleheads: list[dict[str, any]] = search_top_items_from_catagory("149372", ttl=refresh_time, max_results=6)
+	items_autographs: list[dict[str, any]] = search_top_items_from_catagory("14429", ttl=refresh_time, max_results=6)
+	items_military_relics: list[dict[str, any]] = search_top_items_from_catagory("13956", ttl=refresh_time, max_results=6)
+	items_stamps: list[dict[str, any]] = search_top_items_from_catagory("260", ttl=refresh_time, max_results=6)
 
 	all_items: list[dict[str, any]] = items_trading_cards.copy()
 	all_items.extend(items_non_sports)
 	all_items.extend(items_comics)
+	all_items.extend(items_fossles)
 	all_items.extend(items_coins)
+	all_items.extend(items_bobbleheads)
+	all_items.extend(items_autographs)
+	all_items.extend(items_military_relics)
 	all_items.extend(items_stamps)
 
 	top_item_id = get_top_item_id(all_items)
@@ -253,29 +262,42 @@ if __name__ == "__main__":
 			{"header": "Trading Cards", "items": items_trading_cards, "exclude": [top_item_id]},
 			{"header": "Non Sports", "items": items_non_sports, "exclude": [top_item_id]},
 			{"header": "Comics", "items": items_comics, "exclude": [top_item_id]},
+			{"header": "Rocks and Fossles", "items": items_fossles, "exclude": [top_item_id]},
+			{"header": "Autographs", "items": items_autographs, "exclude": [top_item_id]},
 			{"header": "Coins", "items": items_coins, "exclude": [top_item_id]},
 			{"header": "Stamps", "items": items_stamps, "exclude": [top_item_id]},
+			{"header": "Military Relics", "items": items_military_relics, "exclude": [top_item_id]},
+			{"header": "Bobbleheads", "items": items_bobbleheads, "exclude": [top_item_id]},
 		]
 
+	buffer_html.write("<div class=\"container\">\n")
 	for section in sections:
 		buffer_html.write("<div class=\"section\">\n")
 		buffer_md.write("\n### ")
 		buffer_md.write(section['header'])
 		buffer_md.write(" {: .header_3 }\n\n")
-		buffer_html.write(markdown.markdown(buffer_md.getvalue(), extensions=extensions))
+		html_from_md: str = markdown.markdown(buffer_md.getvalue(), extensions=extensions)
+		buffer_html.write(html_from_md)
 		buffer_md.seek(0)
 		buffer_md.truncate(0)
 		buffer_html.write("<div class=\"content\">\n")
-		write_top_items_md_to_buffer(section['header'], section['items'], buffer_md, exclude=section['exclude'])
-		buffer_html.write(markdown.markdown(buffer_md.getvalue(), extensions=extensions))
+		write_top_items_md_to_buffer(search_results=section['items'], buffer_md=buffer_md, exclude=section['exclude'])
+		html_from_md = markdown.markdown(buffer_md.getvalue(), extensions=extensions)
+		buffer_html.write(html_from_md)
 		buffer_html.write("</div>\n")
 		buffer_html.write("</div>\n")
 		buffer_md.seek(0)
 		buffer_md.truncate(0)
 
+	buffer_html.write("</div>\n")
+
 	items_trading_cards.clear()
 	items_non_sports.clear()
 	items_comics.clear()
+	items_fossles.clear()
+	items_autographs.clear()
+	items_bobbleheads.clear()
+	items_military_relics.clear()
 	items_coins.clear()
 	items_stamps.clear()
 
