@@ -1,3 +1,9 @@
+# Generated files
+api_cache.json
+index.html
+cache/
+backup/
+
 # Environment variables
 .env
 
@@ -11,11 +17,6 @@
 .git/refs/
 .git/config
 .git/HEAD
-
-# Generated files
-api_cache.json
-index.html
-cache/
 
 # Python bytecode
 *.pyc
