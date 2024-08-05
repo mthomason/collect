@@ -31,17 +31,9 @@ def top_item_to_markdown(item_id: str, items: list[dict[str, any]]) -> str:
 		raise ValueError("Item not found in the list.")
 
 	auctioneer: PromptPersonalityAuctioneer = PromptPersonalityAuctioneer()
-	buffer_additional_prompt: StringIO = StringIO()
-	buffer_additional_prompt.write("\n```json\n")
-	headlines: list[dict[str, str]] = []
-	headline: dict[str, str] = {item["title"] : item_id}
-	headlines.append({item["title"] : item_id})
-	headline.clear()
-	buffer_additional_prompt.write(json.dumps(headlines))
-	buffer_additional_prompt.write("```\n\n")
-	headlines_iterator = auctioneer.get_headlines(
-		additional_prompt=buffer_additional_prompt.getvalue()
-	)
+	auctioneer.add_headline(item['title'], item_id)
+	
+	headlines_iterator = auctioneer.get_headlines()
 	title: str = ""
 	for headline in headlines_iterator:
 		title = headline['headline']
@@ -49,11 +41,11 @@ def top_item_to_markdown(item_id: str, items: list[dict[str, any]]) -> str:
 
 	buffer: StringIO = StringIO()
 	#title: str = item['title']
-	watch_count: int = item['listingInfo']['watchCount']
-	price: float = item['sellingStatus']['currentPrice']['value']
-	currency: str = item['sellingStatus']['currentPrice']['_currencyId']
+	#watch_count: int = item['listingInfo']['watchCount']
+	#price: float = item['sellingStatus']['currentPrice']['value']
+	#currency: str = item['sellingStatus']['currentPrice']['_currencyId']
+	#top_rated_listing: bool = bool(str.lower(item['topRatedListing']) in ['true', '1'])
 	item_url: str = item['viewItemURL']
-	top_rated_listing: bool = bool(str.lower(item['topRatedListing']) in ['true', '1'])
 	end_time_string: str = item['listingInfo']['endTime']
 	end_datetime: datetime = datetime.strptime(end_time_string, "%Y-%m-%dT%H:%M:%S.%fZ")
 	now: datetime = datetime.now(tz=end_datetime.tzinfo)
@@ -91,28 +83,20 @@ def search_results_to_markdown(items: list[dict], exclude:list[str] = None) -> s
 		ctr: int = 0
 
 		auctioneer: PromptPersonalityAuctioneer = PromptPersonalityAuctioneer()
-
-		buffer_additional_prompt: StringIO = StringIO()
-		buffer_additional_prompt.write("\n```json\n")
-		headlines: list[dict[str, str]] = []
 		for item in items:
 			item_id = item['itemId']
 			if exclude and item_id in exclude:
 				continue
-			headline: dict[str, str] = {item["title"] : item_id}
-			headlines.append({item["title"] : item_id})
-			headline.clear()
-		buffer_additional_prompt.write(json.dumps(headlines))
-		buffer_additional_prompt.write("```\n\n")
+
+			auctioneer.add_headline(item['title'], item_id)
 
 		headlines_ids: dict[str, str] = {}
-
-		headlines_iterator = auctioneer.get_headlines(
-			additional_prompt=buffer_additional_prompt.getvalue()
-		)
+		headlines_iterator = auctioneer.get_headlines()
 
 		for headline in headlines_iterator:
 			headlines_ids[headline['identifier']] = headline['headline']
+
+		auctioneer.clear_headlines()
 
 		for item in items:
 			item_id = item['itemId']
@@ -122,13 +106,12 @@ def search_results_to_markdown(items: list[dict], exclude:list[str] = None) -> s
 			title = headlines_ids.get(item_id)
 			if not title:
 				title = item['title']
-			#title = item['title']
-			watch_count = item['listingInfo']['watchCount']
-			price = item['sellingStatus']['currentPrice']['value']
-			currency = item['sellingStatus']['currentPrice']['_currencyId']
-			item_url = item['viewItemURL']
+			#watch_count = item['listingInfo']['watchCount']
+			#price = item['sellingStatus']['currentPrice']['value']
+			#currency = item['sellingStatus']['currentPrice']['_currencyId']
+			#top_rated_listing: bool = bool(str.lower(item['topRatedListing']) in ['true', '1'])
 
-			top_rated_listing: bool = bool(str.lower(item['topRatedListing']) in ['true', '1'])
+			item_url = item['viewItemURL']
 			end_time_string: str = item['listingInfo']['endTime']
 			end_datetime: datetime = datetime.strptime(end_time_string, "%Y-%m-%dT%H:%M:%S.%fZ")
 			now: datetime = datetime.now(tz=end_datetime.tzinfo)

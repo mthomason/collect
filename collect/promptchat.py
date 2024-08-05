@@ -21,6 +21,7 @@ class PromptPersonality(ABC):
 
 class PromptPersonalityAuctioneer(PromptPersonality):
 	def __init__(self):
+		self.headlines: list[dict[str, str]] = []
 		super().__init__("Auctioneer", "", [])
 		self.functions = None
 		try:
@@ -40,16 +41,29 @@ class PromptPersonalityAuctioneer(PromptPersonality):
 
 		self.prompts = [self.prompt_start]
 
+	def add_headline(self, id: str, headline: str, ) -> None:
+		self.headlines.append({"id": id, "headline": headline})
+
+	def clear_headlines(self) -> None:
+		self.headlines.clear()
+
+	def additional_prompt(self) -> str:
+		buffer: StringIO = StringIO()
+		buffer.write("\n```json\n")
+		buffer.write(json.dumps(self.headlines))
+		buffer.write("```\n\n")
+		return buffer.getvalue()
+
 	def generate_response(self, prompt: str) -> str:
 		return f"{self.name}: {prompt}"
 
-	def get_headlines(self, additional_prompt: str) -> iter:
+	def get_headlines(self) -> iter:
 		openai.api_key = os.getenv("OPENAI_API_KEY")
 		openai_model = "gpt-4-turbo"
 
 		buffer_prompt = StringIO()
 		buffer_prompt.write(self.prompts[0])
-		buffer_prompt.write(additional_prompt)
+		buffer_prompt.write(self.additional_prompt())
 
 		prompt_messages: list[dict[str, str]] = []
 		prompt_messages.append({"role": "system", "content": self.context})
@@ -61,12 +75,6 @@ class PromptPersonalityAuctioneer(PromptPersonality):
 		}
 
 		if self.functions:
-
-			#json_data["temperature"] = 0.3
-			#json_data["top_p"] = 0.9
-			#json_data["max_tokens"] = 100
-			#json_data["frequency_penalty"] = 0.5
-			#json_data["presence_penalty"] = 0.1
 			json_data["functions"] = self.functions
 			json_data["function_call"] = {"name": "headlines_function"}
 
@@ -89,6 +97,11 @@ class PromptPersonalityAuctioneer(PromptPersonality):
 		except Exception as e:
 			print(f"Unable to generate response. Exception: {e}.")
 			return iter([])
+
+	def __del__(self):
+		self.headlines.clear()
+
+
 
 # Example usage
 if __name__ == "__main__":
