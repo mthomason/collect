@@ -6,4 +6,3 @@
 4. [ ] Add links to hobby websites
 5. [ ] Create something related to other websites rss feeds
 6. [ ] Cache all images
-
