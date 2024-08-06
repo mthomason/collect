@@ -14,6 +14,7 @@ from collect.apicache import APICache
 from collect.imagecache import ImageCache
 from collect.ebayapi import eBayAPI
 from collect.promptchat import PromptPersonalityAuctioneer
+from collect.rss_tool import RssTool
 
 def top_item_to_markdown(item_id: str, items: list[dict[str, any]]) -> str:
 	"""This is the most watched collectable item."""
@@ -300,6 +301,40 @@ if __name__ == "__main__":
 	items_military_relics.clear()
 	items_coins.clear()
 	items_stamps.clear()
+
+	buffer_md.seek(0)
+	buffer_md.truncate(0)
+
+	buffer_md.write("## News {: .header_2 }\n\n")
+	buffer_html.write("<div class=\"container\">\n")
+	buffer_html.write("<div class=\"section\">\n")
+	buffer_md.write("\n### ")
+	buffer_md.write("Trading Cards")
+	buffer_md.write(" {: .header_3 }\n\n")
+	html_from_md: str = markdown.markdown(buffer_md.getvalue(), extensions=extensions)
+	buffer_html.write(html_from_md)
+	buffer_md.seek(0)
+	buffer_md.truncate(0)
+	buffer_html.write("\n<div class=\"content\">\n")
+
+	url_bectket: str = "https://www.beckett.com/news/feed/"
+	cache_file: str = "cache/becket_rss.json"
+	rss_tool = RssTool(url_bectket, cache_duration=28800, cache_file=cache_file)
+	for item in rss_tool.fetch():
+		buffer_md.write(" * [")
+		buffer_md.write(item['title'])
+		buffer_md.write("](")
+		buffer_md.write(item['link'])
+		buffer_md.write(")\n")
+
+	html_from_md = markdown.markdown(buffer_md.getvalue(), extensions=extensions)
+	buffer_html.write(html_from_md)
+	buffer_md.seek(0)
+	buffer_md.truncate(0)
+	buffer_html.write("</div>\n")	# Close div.content
+	buffer_html.write("</div>\n")	# Close div.section
+
+	buffer_html.write("</div>\n")	# Close div.container
 
 	buffer_md.close()
 
