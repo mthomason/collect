@@ -77,7 +77,7 @@ class JSONDataCache:
 if __name__ == '__main__':
 	import sys
 
-	def test_json_data_cache() -> None:
+	def _test() -> None:
 		cache = JSONDataCache('cache/test_cache.json', max_record_age=1)
 		cache.add_record("Record 1", "1")
 		cache.add_record("Record 2", "2")
@@ -102,6 +102,6 @@ if __name__ == '__main__':
 		assert record[JSONDataCache._DATA_KEY_TITLE] == "Record 3"
 
 	if len(sys.argv) > 1 and (sys.argv[1] == "-t" or sys.argv[1] == "--test"):
-		test_json_data_cache()
+		_test()
 	else:
 		raise ValueError("This script is not meant to be run directly.")
