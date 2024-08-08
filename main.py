@@ -306,27 +306,52 @@ if __name__ == "__main__":
 	buffer_md.truncate(0)
 
 	buffer_md.write("## News {: .header_2 }\n\n")
+
 	buffer_html.write("<div class=\"container\">\n")
+
 	buffer_html.write("<div class=\"section\">\n")
 	buffer_md.write("\n### ")
-	buffer_md.write("Trading Cards")
+	buffer_md.write("Releases")
 	buffer_md.write(" {: .header_3 }\n\n")
 	html_from_md: str = markdown.markdown(buffer_md.getvalue(), extensions=extensions)
 	buffer_html.write(html_from_md)
 	buffer_md.seek(0)
 	buffer_md.truncate(0)
 	buffer_html.write("\n<div class=\"content\">\n")
-
 	url_bectket: str = "https://www.beckett.com/news/feed/"
 	cache_file: str = "cache/becket_rss.json"
-	rss_tool = RssTool(url_bectket, cache_duration=28800, cache_file=cache_file)
+	rss_tool: RssTool = RssTool(url_bectket, cache_duration=60, cache_file=cache_file)
 	for item in rss_tool.fetch():
 		buffer_md.write(" * [")
 		buffer_md.write(item['title'])
 		buffer_md.write("](")
 		buffer_md.write(item['link'])
 		buffer_md.write(")\n")
+	html_from_md = markdown.markdown(buffer_md.getvalue(), extensions=extensions)
+	buffer_html.write(html_from_md)
+	buffer_md.seek(0)
+	buffer_md.truncate(0)
+	buffer_html.write("</div>\n")	# Close div.content
+	buffer_html.write("</div>\n")	# Close div.section
 
+	buffer_html.write("<div class=\"section\">\n")
+	buffer_md.write("\n### ")
+	buffer_md.write("Collecting News")
+	buffer_md.write(" {: .header_3 }\n\n")
+	html_from_md: str = markdown.markdown(buffer_md.getvalue(), extensions=extensions)
+	buffer_html.write(html_from_md)
+	buffer_md.seek(0)
+	buffer_md.truncate(0)
+	buffer_html.write("\n<div class=\"content\">\n")
+	url_bectket: str = "https://www.sportscollectorsdaily.com/category/sports-card-news/feed/"
+	cache_file: str = "cache/sports-collector-daily_rss.json"
+	rss_tool: RssTool = RssTool(url_bectket, cache_duration=60, cache_file=cache_file)
+	for item in rss_tool.fetch():
+		buffer_md.write(" * [")
+		buffer_md.write(item['title'])
+		buffer_md.write("](")
+		buffer_md.write(item['link'])
+		buffer_md.write(")\n")
 	html_from_md = markdown.markdown(buffer_md.getvalue(), extensions=extensions)
 	buffer_html.write(html_from_md)
 	buffer_md.seek(0)

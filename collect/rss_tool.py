@@ -3,6 +3,7 @@
 
 import json
 import os
+import platform
 import requests
 import xml.etree.ElementTree as ElementTree
 from xml.etree.ElementTree import Element
@@ -37,7 +38,11 @@ class RssTool:
 
 	def _update_cache(self) -> list[dict[str, str]]:
 		"""Fetch data from the URL and update the cache."""
+
 		response: Response = requests.get(self.url)
+		if response.status_code != 200:
+			raise ValueError(f"Failed to fetch data from {self.url}.")
+
 		root: Element = ElementTree.fromstring(response.content)
 
 		new_cache: list = []

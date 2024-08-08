@@ -96,4 +96,11 @@ ul {
 	list-style-type: none;
 }
 
+ul {
+	font-size: 0.8em;
+}
+
+div.content p {
+	display: none;
+}
 
