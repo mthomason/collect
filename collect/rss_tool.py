@@ -6,10 +6,59 @@ import os
 import platform
 import requests
 import xml.etree.ElementTree as ElementTree
-from xml.etree.ElementTree import Element
+
 from datetime import datetime, timedelta
-from typing import Generator
 from requests.models import PreparedRequest, Request, Response
+from typing import Final, Generator
+from urllib.parse import urlparse, ParseResult
+from urllib.robotparser import RobotFileParser
+from xml.etree.ElementTree import Element
+
+class RequestBot:
+	_REQUEST_BOT_USER_AGENT: Final[str] = "HobbyBot/1.0"
+	_REQUEST_BOT_HEADERS: dict[str, str] = {
+		"User-Agent": _REQUEST_BOT_USER_AGENT
+	}
+
+	def __init__(self, url: str) -> None:
+		self._url: str = url
+		system: str = platform.system()
+		if str.lower(system) == "darwin":
+			os.environ["no_proxy"] = "*"
+
+		self._request: Request = Request()
+		self._response: Response | None = None
+	
+	def get(self) -> Response:
+		self._request.method = "GET"
+		self._request.url = self._url
+		self._request.headers = RequestBot._REQUEST_BOT_HEADERS
+		self._response = requests.get(self._request.url, headers=self._request.headers)
+		return self._response
+	
+	def fetch(self) -> Response:
+		return self.get()
+	
+	def obey_robots_txt(self, url: str) -> bool:
+		"""Check the robots.txt file for the given URL."""
+		parsed_url: ParseResult = urlparse(self.url)
+		robots_url = f"{parsed_url.scheme}://{parsed_url.netloc}/robots.txt"
+		response: Response = self.get(robots_url)
+		if response.status_code == 200:
+			robots_txt = response.text
+			robot_parser: RobotFileParser = RobotFileParser()
+			robot_parser.parse(robots_txt.splitlines())
+			if robot_parser.can_fetch(RequestBot._REQUEST_BOT_USER_AGENT, self.url):
+				print("Allowed by robots.txt.")
+				return True
+			else:
+				print("Disallowed by robots.txt.")
+				return False
+		else:
+			print("No robots.txt file found.")
+			return False
+	
+	
 
 class RssTool:
 	def __init__(self, url: str, cache_duration: int = 28800, cache_file: str = "rss_cache.json"):
