@@ -267,6 +267,11 @@ if __name__ == "__main__":
 	items_autographs: list[dict[str, any]] = search_top_items_from_catagory("14429", ttl=refresh_time, max_results=6)
 	items_military_relics: list[dict[str, any]] = search_top_items_from_catagory("13956", ttl=refresh_time, max_results=6)
 	items_stamps: list[dict[str, any]] = search_top_items_from_catagory("260", ttl=refresh_time, max_results=6)
+	items_us_stamps: list[dict[str, any]] = search_top_items_from_catagory("261", ttl=refresh_time, max_results=6)
+	items_antiques: list[dict[str, any]] = search_top_items_from_catagory("20081", ttl=refresh_time, max_results=6)
+	items_art: list[dict[str, any]] = search_top_items_from_catagory("550", ttl=refresh_time, max_results=6)
+	items_toys_hobbies: list[dict[str, any]] = search_top_items_from_catagory("220", ttl=refresh_time, max_results=6)
+	items_collectables: list[dict[str, any]] = search_top_items_from_catagory("1", ttl=refresh_time, max_results=6)
 
 	all_items: list[dict[str, any]] = items_trading_cards.copy()
 	all_items.extend(items_non_sports)
@@ -277,6 +282,10 @@ if __name__ == "__main__":
 	all_items.extend(items_autographs)
 	all_items.extend(items_military_relics)
 	all_items.extend(items_stamps)
+	all_items.extend(items_us_stamps)
+	all_items.extend(items_antiques)
+	all_items.extend(items_art)
+	all_items.extend(items_toys_hobbies)
 
 	top_item_id = get_top_item_id(all_items)
 
@@ -306,8 +315,13 @@ if __name__ == "__main__":
 			{"header": "Autographs", "items": items_autographs, "exclude": [top_item_id]},
 			{"header": "Coins", "items": items_coins, "exclude": [top_item_id]},
 			{"header": "Stamps", "items": items_stamps, "exclude": [top_item_id]},
+			{"header": "US Stamps", "items": items_us_stamps, "exclude": [top_item_id]},
+			{"header": "Antiques", "items": items_antiques, "exclude": [top_item_id]},
+			{"header": "Art", "items": items_art, "exclude": [top_item_id]},
+			{"header": "Toys and Hobbies", "items": items_toys_hobbies, "exclude": [top_item_id]},
 			{"header": "Military Relics", "items": items_military_relics, "exclude": [top_item_id]},
 			{"header": "Bobbleheads", "items": items_bobbleheads, "exclude": [top_item_id]},
+			{"header": "Collectables", "items": items_collectables, "exclude": [top_item_id]}
 		]
 
 	buffer_html.write("<div class=\"container\">\n")
@@ -340,6 +354,11 @@ if __name__ == "__main__":
 	items_military_relics.clear()
 	items_coins.clear()
 	items_stamps.clear()
+	items_us_stamps.clear()
+	items_antiques.clear()
+	items_art.clear()
+	items_toys_hobbies.clear()
+	items_collectables.clear()
 
 	buffer_md.seek(0)
 	buffer_md.truncate(0)
