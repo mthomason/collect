@@ -7,59 +7,13 @@ import platform
 import requests
 import xml.etree.ElementTree as ElementTree
 
+from collect.fetch_bot import FetchBot
 from datetime import datetime, timedelta
 from requests.models import PreparedRequest, Request, Response
 from typing import Final, Generator
 from urllib.parse import urlparse, ParseResult
 from urllib.robotparser import RobotFileParser
 from xml.etree.ElementTree import Element
-
-class RequestBot:
-	_REQUEST_BOT_USER_AGENT: Final[str] = "HobbyBot/1.0"
-	_REQUEST_BOT_HEADERS: dict[str, str] = {
-		"User-Agent": _REQUEST_BOT_USER_AGENT
-	}
-
-	def __init__(self, url: str) -> None:
-		self._url: str = url
-		system: str = platform.system()
-		if str.lower(system) == "darwin":
-			os.environ["no_proxy"] = "*"
-
-		self._request: Request = Request()
-		self._response: Response | None = None
-	
-	def get(self, url: str | None = None) -> Response:
-		self._request.method = "GET"
-		_request_url: str = url or self._url
-		self._request.url = _request_url
-		self._request.headers = RequestBot._REQUEST_BOT_HEADERS
-		self._response = requests.get(self._request.url, headers=self._request.headers)
-		return self._response
-	
-	def fetch(self) -> Response:
-		return self.get()
-	
-	def obey_robots_txt(self) -> bool:
-		"""Check the robots.txt file for the given URL."""
-		parsed_url: ParseResult = urlparse(self._url)
-		robots_url = f"{parsed_url.scheme}://{parsed_url.netloc}/robots.txt"
-		response: Response = self.get(robots_url)
-		if response.status_code == 200:
-			robots_txt = response.text
-			robot_parser: RobotFileParser = RobotFileParser()
-			robot_parser.parse(robots_txt.splitlines())
-			if robot_parser.can_fetch(RequestBot._REQUEST_BOT_USER_AGENT, self._url):
-				print("Allowed by robots.txt.")
-				return True
-			else:
-				print("Disallowed by robots.txt.")
-				return False
-		else:
-			print("No robots.txt file found.")
-			return True
-	
-	
 
 class RssTool:
 	def __init__(self, url: str, cache_duration: int = 28800, cache_file: str = "rss_cache.json"):
@@ -89,8 +43,8 @@ class RssTool:
 	def _update_cache(self) -> list[dict[str, str]]:
 		"""Fetch data from the URL and update the cache."""
 
-		request_bot: RequestBot = RequestBot(self._url)
-		if not request_bot.obey_robots_txt(self._url):
+		request_bot: FetchBot = FetchBot(self._url)
+		if not request_bot.obey_robots_txt():
 			raise ValueError("The URL is disallowed by robots.txt.")
 
 		response: Response = request_bot.fetch()
@@ -136,8 +90,6 @@ if __name__ == "__main__":
 		rss_tool = RssTool(url, cache_duration=28800, cache_file=cache_file)
 		for item in rss_tool.fetch():
 			print(item)
-
-	_test()
 
 	if len(sys.argv) > 1 and (sys.argv[1] == "-t" or sys.argv[1] == "--test"):
 		_test()
