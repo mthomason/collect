@@ -1,13 +1,15 @@
 # /main.py
 # -*- coding: utf-8 -*-
 
+from random import randint
 from dotenv import load_dotenv
 
 import uuid
 import markdown
-from io import StringIO
 
 from datetime import datetime, timedelta
+from io import StringIO
+from typing import Generator, Callable
 
 from collect.filepathtools import FilePathTools
 from collect.apicache import APICache
@@ -65,14 +67,22 @@ def top_item_to_markdown(item_id: str, items: list[dict[str, any]]) -> str:
 	now: datetime = datetime.now(tz=end_datetime.tzinfo)
 
 	image_url = item['galleryURL']
-	
+	image_url_large: str = ""
+
 	if image_url.endswith("s-l140.jpg"):
-		image_url = image_url.replace("s-l140.jpg", "s-l400.jpg")
-	
+		image_url = image_url.replace("s-l140.jpg", "s-l1600.jpg")
+		image_url_large = image_url.replace("s-l140.jpg", "s-l1600.jpg")
+
 	try:
 		image_cache = ImageCache(url=image_url, identifier=item_id)
 	except Exception as e:
 		image_cache = ImageCache(url=item['galleryURL'], identifier=item_id)
+		print(f"Error: {e}")
+
+	try:
+		image_cache_large = ImageCache(url=image_url_large, identifier=item_id + "_large")
+		local_path = image_cache_large.get_image_path()
+	except Exception as e:
 		print(f"Error: {e}")
 
 	local_path = image_cache.get_image_path()
@@ -93,7 +103,8 @@ def top_item_to_markdown(item_id: str, items: list[dict[str, any]]) -> str:
 
 	return buffer.getvalue()
 
-def search_results_to_markdown(items: list[dict], exclude:list[str] = None) -> str:
+def search_results_to_markdown(items: list[dict], exclude:list[str] = None, display_image: bool = False) -> str:
+	"""Converts a list of search results to markdown."""
 	buffer: StringIO = StringIO()
 	if items:
 		item: dict = None
@@ -139,7 +150,7 @@ def search_results_to_markdown(items: list[dict], exclude:list[str] = None) -> s
 
 			if end_datetime > now:
 
-				if ctr == 0:
+				if display_image and ctr == 0:
 					image_url = item['galleryURL']
 
 					buffer.write("![image](")
@@ -167,15 +178,6 @@ def search_top_items_from_catagory(category_id: str, ttl: int, max_results: int)
 	search_results: list[dict[str, any]] = api_cache.cached_api_call(ebay_api.search_top_watched_items, category_id, max_results)
 	return search_results
 
-def write_top_items_md_to_buffer(search_results: list[dict[str, any]], buffer_md: StringIO, exclude: list[str] = None) -> None:
-	if not search_results:
-		raise ValueError("search_results is required.")
-	
-	md_from_search_results: str = search_results_to_markdown(search_results, exclude)
-	buffer_md.write(md_from_search_results)
-
-	return None
-
 def get_top_item_id(search_results: list[dict[str, any]]) -> str:
 	"""Returns the item_id of the most watched item in the list."""
 	if not search_results:
@@ -198,7 +200,44 @@ def get_top_item_id(search_results: list[dict[str, any]]) -> str:
 			max_item_id = item['itemId']
 
 	return max_item_id
+
+def generate_html_section(buffer_html: StringIO,
+						  buffer_md: StringIO,
+						  title: str,
+						  extensions: list,
+						  fetch_func: Callable[[], Generator[dict[str, str], None, None]]):
+						  
+	buffer_html.write("<div class=\"section\">\n")
+	buffer_md.write("\n### ")
+	buffer_md.write(title)
+	buffer_md.write(" {: .header_3 }\n\n")
+	html_from_md = markdown.markdown(buffer_md.getvalue(), extensions=extensions)
+	buffer_html.write(html_from_md)
+	buffer_md.seek(0)
+	buffer_md.truncate(0)
+	buffer_html.write("\n<div class=\"content\">\n")
+	for item in fetch_func():
+		buffer_md.write(" * [")
+		buffer_md.write(item['title'])
+		buffer_md.write("](")
+		buffer_md.write(item['link'])
+		buffer_md.write(")\n")
+
+	html_from_md = markdown.markdown(buffer_md.getvalue(), extensions=extensions)
+	buffer_html.write(html_from_md)
+	buffer_md.seek(0)
+	buffer_md.truncate(0)
+	buffer_html.write("</div>\n</div>\n")
+
+def write_top_items_md_to_buffer(search_results: list[dict[str, any]], buffer_md: StringIO, exclude: list[str] = None) -> None:
+	if not search_results:
+		raise ValueError("search_results is required.")
 	
+	md_from_search_results: str = search_results_to_markdown(search_results, exclude)
+	buffer_md.write(md_from_search_results)
+
+	return None
+
 '''
 	Main function
 '''
@@ -282,11 +321,11 @@ if __name__ == "__main__":
 		buffer_md.seek(0)
 		buffer_md.truncate(0)
 		buffer_html.write("<div class=\"content\">\n")
-		write_top_items_md_to_buffer(search_results=section['items'], buffer_md=buffer_md, exclude=section['exclude'])
+		md_from_search_results: str = search_results_to_markdown(section['items'], section['exclude'])
+		buffer_md.write(md_from_search_results)
 		html_from_md = markdown.markdown(buffer_md.getvalue(), extensions=extensions)
 		buffer_html.write(html_from_md)
-		buffer_html.write("</div>\n")
-		buffer_html.write("</div>\n")
+		buffer_html.write("</div>\n</div>\n")
 		buffer_md.seek(0)
 		buffer_md.truncate(0)
 
@@ -307,57 +346,58 @@ if __name__ == "__main__":
 
 	buffer_md.write("## News {: .header_2 }\n\n")
 
+	buffer_html.write(markdown.markdown(buffer_md.getvalue(), extensions=extensions))
+	buffer_md.seek(0)
+	buffer_md.truncate(0)
+
 	buffer_html.write("<div class=\"container\">\n")
 
-	buffer_html.write("<div class=\"section\">\n")
-	buffer_md.write("\n### ")
-	buffer_md.write("Releases")
-	buffer_md.write(" {: .header_3 }\n\n")
-	html_from_md: str = markdown.markdown(buffer_md.getvalue(), extensions=extensions)
-	buffer_html.write(html_from_md)
-	buffer_md.seek(0)
-	buffer_md.truncate(0)
-	buffer_html.write("\n<div class=\"content\">\n")
-	url_bectket: str = "https://www.beckett.com/news/feed/"
-	cache_file: str = "cache/becket_rss.json"
-	rss_tool: RssTool = RssTool(url_bectket, cache_duration=60, cache_file=cache_file)
-	for item in rss_tool.fetch():
-		buffer_md.write(" * [")
-		buffer_md.write(item['title'])
-		buffer_md.write("](")
-		buffer_md.write(item['link'])
-		buffer_md.write(")\n")
-	html_from_md = markdown.markdown(buffer_md.getvalue(), extensions=extensions)
-	buffer_html.write(html_from_md)
-	buffer_md.seek(0)
-	buffer_md.truncate(0)
-	buffer_html.write("</div>\n")	# Close div.content
-	buffer_html.write("</div>\n")	# Close div.section
+	rss_tool: RssTool = RssTool(url="https://www.beckett.com/news/feed/",
+							 	cache_duration=60*30*3,
+								cache_file="cache/rss_becket.json")
+	generate_html_section(
+		buffer_html=buffer_html,
+		buffer_md=buffer_md,
+		title="Releases",
+		extensions=extensions,
+		fetch_func=rss_tool.fetch
+	)
 
-	buffer_html.write("<div class=\"section\">\n")
-	buffer_md.write("\n### ")
-	buffer_md.write("Collecting News")
-	buffer_md.write(" {: .header_3 }\n\n")
-	html_from_md: str = markdown.markdown(buffer_md.getvalue(), extensions=extensions)
-	buffer_html.write(html_from_md)
-	buffer_md.seek(0)
-	buffer_md.truncate(0)
-	buffer_html.write("\n<div class=\"content\">\n")
-	url_bectket: str = "https://www.sportscollectorsdaily.com/category/sports-card-news/feed/"
-	cache_file: str = "cache/sports-collector-daily_rss.json"
-	rss_tool: RssTool = RssTool(url_bectket, cache_duration=60, cache_file=cache_file)
-	for item in rss_tool.fetch():
-		buffer_md.write(" * [")
-		buffer_md.write(item['title'])
-		buffer_md.write("](")
-		buffer_md.write(item['link'])
-		buffer_md.write(")\n")
-	html_from_md = markdown.markdown(buffer_md.getvalue(), extensions=extensions)
-	buffer_html.write(html_from_md)
-	buffer_md.seek(0)
-	buffer_md.truncate(0)
-	buffer_html.write("</div>\n")	# Close div.content
-	buffer_html.write("</div>\n")	# Close div.section
+	rss_tool = RssTool(url="https://www.sportscollectorsdaily.com/category/sports-card-news/feed/",
+					cache_duration=60*60*1,
+					cache_file="cache/rss_sports-collector-daily.json")
+	
+	generate_html_section(
+		buffer_html=buffer_html, 
+		buffer_md=buffer_md, 
+		title="Sports Cards News", 
+		extensions=extensions,
+		fetch_func=rss_tool.fetch
+	)
+
+	rss_tool = RssTool(url="https://comicbook.com/feed/rss/",
+					cache_duration=60*60*1,
+					cache_file="cache/rss_comicbook-com.json")
+	
+	generate_html_section(
+		buffer_html=buffer_html, 
+		buffer_md=buffer_md, 
+		title="Comic News", 
+		extensions=extensions,
+		fetch_func=rss_tool.fetch
+	)
+
+	rss_tool = RssTool(url="https://coinweek.com/feed/",
+					cache_duration=60*60*4,
+					cache_file="cache/rss_coin-week.json")
+	
+	generate_html_section(
+		buffer_html=buffer_html, 
+		buffer_md=buffer_md, 
+		title="Coin News", 
+		extensions=extensions,
+		fetch_func=rss_tool.fetch
+	)
 
 	buffer_html.write("</div>\n")	# Close div.container
 

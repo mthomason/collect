@@ -16,8 +16,10 @@ from urllib.robotparser import RobotFileParser
 from xml.etree.ElementTree import Element
 
 class RssTool:
-	def __init__(self, url: str, cache_duration: int = 28800, cache_file: str = "rss_cache.json"):
+	def __init__(self, url: str, cache_duration: int = 28800,
+			  max_results: int = 10, cache_file: str = "rss_cache.json"):
 		self._url: str = url
+		self._max_results: int = max_results
 		self.cache_file: str = cache_file
 		self.cache_duration: timedelta = timedelta(seconds=cache_duration)
 		self._last_fetch_time: datetime | None = None
@@ -55,10 +57,14 @@ class RssTool:
 		root: Element = ElementTree.fromstring(response.content)
 
 		new_cache: list = []
+		i: int = 0
 		for item in root.findall(".//item"):
+			if i >= self._max_results:
+				break
 			title: str = item.find("title").text
 			link: str = item.find("link").text
 			new_cache.append({"title": title, "link": link})
+			i += 1
 
 		self._last_fetch_time = datetime.now()
 		return new_cache
