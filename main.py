@@ -1,11 +1,14 @@
 # /main.py
 # -*- coding: utf-8 -*-
 
+import json
+import uuid
+import markdown
+
 from random import randint
 from dotenv import load_dotenv
 
-import uuid
-import markdown
+from os import path
 
 from datetime import datetime, timedelta
 from io import StringIO
@@ -18,7 +21,7 @@ from collect.ebayapi import eBayAPI
 from collect.promptchat import PromptPersonalityAuctioneer
 from collect.rss_tool import RssTool
 
-def top_item_to_markdown(item_id: str, items: list[dict[str, any]]) -> str:
+def top_item_to_markdown(item_id: str, items: list[dict[str, any]], epn_category: str) -> str:
 	"""This is the most watched collectable item."""
 	"""
 		Items is a list of dictionaries with keys:
@@ -62,6 +65,7 @@ def top_item_to_markdown(item_id: str, items: list[dict[str, any]]) -> str:
 
 	buffer: StringIO = StringIO()
 	item_url: str = item['viewItemURL']
+	epn_url: str = eBayAPI.generate_epn_link(item_url, epn_category)
 	end_time_string: str = item['listingInfo']['endTime']
 	end_datetime: datetime = datetime.strptime(end_time_string, "%Y-%m-%dT%H:%M:%S.%fZ")
 	now: datetime = datetime.now(tz=end_datetime.tzinfo)
@@ -95,7 +99,7 @@ def top_item_to_markdown(item_id: str, items: list[dict[str, any]]) -> str:
 	buffer.write("**[")
 	buffer.write(title)
 	buffer.write("](")
-	buffer.write(item_url)
+	buffer.write(epn_url)
 
 	if end_datetime - now < timedelta(days=1):
 		buffer.write("){: .top_headline_ending_soon }**\n\n")
@@ -104,7 +108,8 @@ def top_item_to_markdown(item_id: str, items: list[dict[str, any]]) -> str:
 
 	return buffer.getvalue()
 
-def search_results_to_markdown(items: list[dict], exclude:list[str] = None, display_image: bool = False) -> str:
+def search_results_to_markdown(items: list[dict], epn_category: str, exclude:list[str] = None,
+							   display_image: bool = False) -> str:
 	"""Converts a list of search results to markdown."""
 	buffer: StringIO = StringIO()
 	if items:
@@ -145,6 +150,7 @@ def search_results_to_markdown(items: list[dict], exclude:list[str] = None, disp
 				title = item['title']
 
 			item_url = item['viewItemURL']
+			epn_url = eBayAPI.generate_epn_link(item_url, epn_category)
 			end_time_string: str = item['listingInfo']['endTime']
 			end_datetime: datetime = datetime.strptime(end_time_string, "%Y-%m-%dT%H:%M:%S.%fZ")
 			now: datetime = datetime.now(tz=end_datetime.tzinfo)
@@ -161,7 +167,7 @@ def search_results_to_markdown(items: list[dict], exclude:list[str] = None, disp
 				buffer.write(" * [")
 				buffer.write(title)
 				buffer.write("](")
-				buffer.write(item_url)
+				buffer.write(epn_url)
 
 				if end_datetime - now < timedelta(days=1):
 					buffer.write("){: .ending_soon}\n")
@@ -230,19 +236,56 @@ def generate_html_section(buffer_html: StringIO,
 	buffer_md.truncate(0)
 	buffer_html.write("</div>\n</div>\n")
 
-def write_top_items_md_to_buffer(search_results: list[dict[str, any]], buffer_md: StringIO, exclude: list[str] = None) -> None:
-	if not search_results:
-		raise ValueError("search_results is required.")
-	
-	md_from_search_results: str = search_results_to_markdown(search_results, exclude)
-	buffer_md.write(md_from_search_results)
+class CollectBot:
+	"""This is the main class for the CollectBot."""
+	def __init__(self):
+		"""_summary_
+			Initializes the CollectBot.
 
-	return None
+			_config_
+			{
+				"directory-out": "httpd/",
+				"directory-template": "template/",
+				"directory-cache": "cache/",
+				"output-file-name": "index.html"
+			}
+		"""
+		self._config: dict[str, any] = {}
+		with open("config.json", "r") as file:
+			self._config = json.load(file)
+		with open("epn-categories.json", "r") as file:
+			self._epn_categories = json.load(file)
+
+	@property
+	def filepath_cache_directory(self) -> str:
+		"""Returns the directory path for the cache."""
+		return self._config['directory-cache']
+	
+	@property
+	def epn_category_default(self) -> str:
+		"""Returns the default category for the eBay Partner Network."""
+		return self._epn_categories['default']
+	
+	@property
+	def epn_category_above_headline_link(self) -> str:
+		"""Returns the category for the eBay Partner Network above the headline link."""
+		return self._epn_categories['above_headline_link']
+
+	@property
+	def epn_category_headline_link(self) -> str:
+		"""Returns the category for the eBay Partner Network for the headline link."""
+		return self._epn_categories['headline_link']
+	
+	def epn_category_id(self, category: str) -> str:
+		"""Returns the eBay Partner Network category ID for the given category."""
+		return self._epn_categories[category]
 
 '''
 	Main function
 '''
 if __name__ == "__main__":
+
+	collectbot: CollectBot = CollectBot()
 
 	# Program Initalization
 	if not load_dotenv():
@@ -303,7 +346,7 @@ if __name__ == "__main__":
 
 	buffer_html.write("\t\t<div class=\"lead-headline\">\n")
 	top_item_id: str = get_top_item_id(all_items)
-	top_item_md: str = top_item_to_markdown(top_item_id, all_items)
+	top_item_md: str = top_item_to_markdown(top_item_id, all_items, epn_category=collectbot.epn_category_headline_link)
 	buffer_md.write(top_item_md)
 	buffer_html.write(markdown.markdown(buffer_md.getvalue(), extensions=extensions))
 	buffer_md.seek(0)
@@ -321,20 +364,20 @@ if __name__ == "__main__":
 
 
 	sections: list[dict[str, object]] = [
-			{"header": "Trading Cards", "items": items_trading_cards, "exclude": [top_item_id]},
-			{"header": "Non Sports", "items": items_non_sports, "exclude": [top_item_id]},
-			{"header": "Comics", "items": items_comics, "exclude": [top_item_id]},
-			{"header": "Rocks and Fossles", "items": items_fossles, "exclude": [top_item_id]},
-			{"header": "Autographs", "items": items_autographs, "exclude": [top_item_id]},
-			{"header": "Coins", "items": items_coins, "exclude": [top_item_id]},
-			{"header": "Stamps", "items": items_stamps, "exclude": [top_item_id]},
-			{"header": "US Stamps", "items": items_us_stamps, "exclude": [top_item_id]},
-			{"header": "Antiques", "items": items_antiques, "exclude": [top_item_id]},
-			{"header": "Art", "items": items_art, "exclude": [top_item_id]},
-			{"header": "Toys and Hobbies", "items": items_toys_hobbies, "exclude": [top_item_id]},
-			{"header": "Military Relics", "items": items_military_relics, "exclude": [top_item_id]},
-			{"header": "Bobbleheads", "items": items_bobbleheads, "exclude": [top_item_id]},
-			{"header": "Collectables", "items": items_collectables, "exclude": [top_item_id]}
+			{"header": "Trading Cards", "items": items_trading_cards, "exclude": [top_item_id], "epn_category": collectbot.epn_category_id("trading_cards")},
+			{"header": "Non Sports", "items": items_non_sports, "exclude": [top_item_id], "epn_category": collectbot.epn_category_id("non_sports")},
+			{"header": "Comics", "items": items_comics, "exclude": [top_item_id], "epn_category": collectbot.epn_category_id("comics")},
+			{"header": "Rocks and Fossles", "items": items_fossles, "exclude": [top_item_id], "epn_category": collectbot.epn_category_id("rocks_and_fossils")},
+			{"header": "Autographs", "items": items_autographs, "exclude": [top_item_id], "epn_category": collectbot.epn_category_id("autographs")},
+			{"header": "Coins", "items": items_coins, "exclude": [top_item_id], "epn_category": collectbot.epn_category_id("coins")},
+			{"header": "Stamps", "items": items_stamps, "exclude": [top_item_id], "epn_category": collectbot.epn_category_id("stamps")},
+			{"header": "US Stamps", "items": items_us_stamps, "exclude": [top_item_id], "epn_category": collectbot.epn_category_id("us_stamps")},
+			{"header": "Antiques", "items": items_antiques, "exclude": [top_item_id], "epn_category": collectbot.epn_category_id("antiques")},
+			{"header": "Art", "items": items_art, "exclude": [top_item_id], "epn_category": collectbot.epn_category_id("art")},
+			{"header": "Toys and Hobbies", "items": items_toys_hobbies, "exclude": [top_item_id], "epn_category": collectbot.epn_category_id("toys_and_hobbies")},
+			{"header": "Military Relics", "items": items_military_relics, "exclude": [top_item_id], "epn_category": collectbot.epn_category_id("military_relics")},
+			{"header": "Bobbleheads", "items": items_bobbleheads, "exclude": [top_item_id], "epn_category": collectbot.epn_category_id("bobbleheads")},
+			{"header": "Collectables", "items": items_collectables, "exclude": [top_item_id], "epn_category": collectbot.epn_category_id("collectables")}
 		]
 
 	buffer_html.write("<div class=\"container\">\n")
@@ -348,7 +391,11 @@ if __name__ == "__main__":
 		buffer_md.seek(0)
 		buffer_md.truncate(0)
 		buffer_html.write("<div class=\"content\">\n")
-		md_from_search_results: str = search_results_to_markdown(section['items'], section['exclude'])
+		md_from_search_results: str = search_results_to_markdown(
+			items=section['items'],
+			epn_category=section['epn_category'],
+			exclude=section['exclude']
+		)
 		buffer_md.write(md_from_search_results)
 		html_from_md = markdown.markdown(buffer_md.getvalue(), extensions=extensions)
 		buffer_html.write(html_from_md)
@@ -385,9 +432,10 @@ if __name__ == "__main__":
 
 	buffer_html.write("<div class=\"container\">\n")
 
+	cache_filepath: str = path.join(collectbot.filepath_cache_directory, "rss_becket.json")
 	rss_tool: RssTool = RssTool(url="https://www.beckett.com/news/feed/",
 							 	cache_duration=60*30*3,
-								cache_file="cache/rss_becket.json")
+								cache_file=cache_filepath)
 	generate_html_section(
 		buffer_html=buffer_html,
 		buffer_md=buffer_md,
@@ -396,9 +444,10 @@ if __name__ == "__main__":
 		fetch_func=rss_tool.fetch
 	)
 
+	cache_filepath = path.join(collectbot.filepath_cache_directory, "rss_sports-collector-daily.json")
 	rss_tool = RssTool(url="https://www.sportscollectorsdaily.com/category/sports-card-news/feed/",
 					cache_duration=60*60*1,
-					cache_file="cache/rss_sports-collector-daily.json")
+					cache_file=cache_filepath)
 	
 	generate_html_section(
 		buffer_html=buffer_html, 
@@ -408,6 +457,7 @@ if __name__ == "__main__":
 		fetch_func=rss_tool.fetch
 	)
 
+	cache_filepath = path.join(collectbot.filepath_cache_directory, "rss_comicbook-com.json")
 	rss_tool = RssTool(url="https://comicbook.com/feed/rss/",
 					cache_duration=60*60*1,
 					cache_file="cache/rss_comicbook-com.json")
@@ -420,9 +470,10 @@ if __name__ == "__main__":
 		fetch_func=rss_tool.fetch
 	)
 
+	cache_filepath = path.join(collectbot.filepath_cache_directory, "rss_coin-week.json")
 	rss_tool = RssTool(url="https://coinweek.com/feed/",
 					cache_duration=60*60*4,
-					cache_file="cache/rss_coin-week.json")
+					cache_file=cache_filepath)
 	
 	generate_html_section(
 		buffer_html=buffer_html, 
