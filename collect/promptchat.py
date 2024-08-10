@@ -82,7 +82,7 @@ class PromptPersonalityAuctioneer(PromptPersonality):
 		if (len(uncached_headline_ids) > 0):	# If there are uncached headlines, generate them
 
 			openai.api_key = os.getenv("OPENAI_API_KEY")
-			openai_model: str = "gpt-4-turbo"
+			openai_model: str = "gpt-4o-mini"
 
 			buffer_prompt = StringIO()
 			buffer_prompt.write(self.prompts[0])
