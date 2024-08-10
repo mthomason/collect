@@ -3,6 +3,13 @@ api_cache.json
 index.html
 cache/
 backup/
+httpd/
+
+# Config Files
+config.json
+epn-categories.json
+newspaper.html
+style_newspaper.css
 
 # Environment variables
 .env
