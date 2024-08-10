@@ -70,8 +70,7 @@ def top_item_to_markdown(item_id: str, items: list[dict[str, any]]) -> str:
 	image_url_large: str = ""
 
 	if image_url.endswith("s-l140.jpg"):
-		image_url = image_url.replace("s-l140.jpg", "s-l1600.jpg")
-		image_url_large = image_url.replace("s-l140.jpg", "s-l1600.jpg")
+		image_url = image_url.replace("s-l140.jpg", "s-l400.jpg")
 
 	try:
 		image_cache = ImageCache(url=image_url, identifier=item_id)
@@ -80,6 +79,8 @@ def top_item_to_markdown(item_id: str, items: list[dict[str, any]]) -> str:
 		print(f"Error: {e}")
 
 	try:
+		if image_url.endswith("s-l400.jpg"):
+			image_url_large = image_url.replace("s-l400.jpg", "s-l1600.jpg")
 		image_cache_large = ImageCache(url=image_url_large, identifier=item_id + "_large")
 		local_path = image_cache_large.get_image_path()
 	except Exception as e:
@@ -253,7 +254,6 @@ if __name__ == "__main__":
 
 	buffer_md: StringIO = StringIO()
 	refresh_time: int = 8 * 60 * 60
-	top_item_id: str = ""
 
 	buffer_html: StringIO = StringIO(initial_value="")
 	extensions: list[str] = ['attr_list']
@@ -286,26 +286,39 @@ if __name__ == "__main__":
 	all_items.extend(items_antiques)
 	all_items.extend(items_art)
 	all_items.extend(items_toys_hobbies)
-
-	top_item_id = get_top_item_id(all_items)
-
-	top_item_md = top_item_to_markdown(top_item_id, all_items)
-
-	all_items.clear()
+	all_items.extend(items_collectables)
 
 	# Write the HTML header
 	with open('templates/header.html', 'r', encoding="utf-8") as input_file:
 		buffer_html.write(input_file.read())
 
-	# Write the markdown header
+	buffer_html.write("\t<div class=\"newspaper\">\n")
+
+	buffer_html.write("\t\t<div class=\"nameplate\">\n\t\t\t")
 	buffer_md.write("# Hobby Report {: .header_1 }\n\n")
+	buffer_html.write(markdown.markdown(buffer_md.getvalue(), extensions=extensions))
+	buffer_html.write("\n\t\t</div>\n")
+	buffer_md.seek(0)
+	buffer_md.truncate(0)
+
+	buffer_html.write("\t\t<div class=\"lead-headline\">\n")
+	top_item_id: str = get_top_item_id(all_items)
+	top_item_md: str = top_item_to_markdown(top_item_id, all_items)
 	buffer_md.write(top_item_md)
-
-	buffer_md.write("## Auctions {: .header_2 }\n\n")
-
 	buffer_html.write(markdown.markdown(buffer_md.getvalue(), extensions=extensions))
 	buffer_md.seek(0)
 	buffer_md.truncate(0)
+	buffer_html.write("\n\t\t</div>\n")
+
+	all_items.clear()
+
+	buffer_html.write("\t\t<div class=\"section-header-auctions\">\n")
+	buffer_md.write("## Auctions {: .header_2 }\n\n")
+	buffer_html.write(markdown.markdown(buffer_md.getvalue(), extensions=extensions))
+	buffer_md.seek(0)
+	buffer_md.truncate(0)
+	buffer_html.write("\n\t\t</div>\n")
+
 
 	sections: list[dict[str, object]] = [
 			{"header": "Trading Cards", "items": items_trading_cards, "exclude": [top_item_id]},
@@ -363,11 +376,12 @@ if __name__ == "__main__":
 	buffer_md.seek(0)
 	buffer_md.truncate(0)
 
+	buffer_html.write("<div class=\"section-header-news\">\n")
 	buffer_md.write("## News {: .header_2 }\n\n")
-
 	buffer_html.write(markdown.markdown(buffer_md.getvalue(), extensions=extensions))
 	buffer_md.seek(0)
 	buffer_md.truncate(0)
+	buffer_html.write("</div>\n")
 
 	buffer_html.write("<div class=\"container\">\n")
 
@@ -418,7 +432,8 @@ if __name__ == "__main__":
 		fetch_func=rss_tool.fetch
 	)
 
-	buffer_html.write("</div>\n")	# Close div.container
+	buffer_html.write("</div>\n")
+	buffer_html.write("</div>\n")
 
 	buffer_md.close()
 
