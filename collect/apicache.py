@@ -35,7 +35,7 @@ class APICache:
 			'timestamp': time.time()
 		}
 		with open(self.cache_file_path(), 'w') as cache_file:
-			json.dump(cache_data, cache_file, indent=4)
+			json.dump(cache_data, cache_file, indent="\t")
 
 	def cached_api_call(self, func: Callable[[], list[dict[str, any]]], *args) -> list[dict[str, any]]:
 		"""Fetches data from the cache or calls the API function and caches the result."""
