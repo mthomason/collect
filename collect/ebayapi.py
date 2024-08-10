@@ -2,8 +2,10 @@
 # -*- coding: utf-8 -*-
 
 import os
+import urllib.parse
 from ebaysdk.finding import Connection as Finding
 from ebaysdk.exception import ConnectionError
+from urllib.parse import urlencode, urlparse, urlunparse, parse_qsl
 
 class eBayAPI:
 	def __init__(self):
@@ -16,6 +18,32 @@ class eBayAPI:
 
 		# Initialize the eBay API connection
 		self.api = Finding(appid=self.appid, config_file=None, domain="svcs.ebay.com")
+
+	@staticmethod
+	def generate_epn_link(original_url: str, campaign_id: str, custom_id: str = '') -> str:
+		base_params = {
+			'mkcid': '1',
+			'mkrid': '711-53200-19255-0',
+			'siteid': '0',
+			'campid': campaign_id,
+			'customid': custom_id,
+			'toolid': '10001',
+			'mkevt': '1'
+		}
+
+		url_parts = list(urlparse(original_url))
+		query = dict(parse_qsl(url_parts[4]))
+		query.update(base_params)
+		url_parts[4] = urlencode(query)
+
+		return urlunparse(url_parts)
+
+	def generate_epn_link_rover(ebay_url: str, tracking_id: str, campaign_id: str) -> str:
+		program_id = "710-53481-19255-0"  # Check your EPN account for the correct value
+		encoded_url = urllib.parse.quote(ebay_url)
+		partner_link = f"https://rover.ebay.com/rover/1/{program_id}/{tracking_id}/{campaign_id}?mpre={encoded_url}"
+		return partner_link
+
 
 	def search_top_watched_items(self, category_id: str, max_results: int = 10) -> list[dict[str, any]]:
 		try:
