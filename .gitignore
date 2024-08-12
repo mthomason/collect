@@ -4,6 +4,7 @@ index.html
 cache/
 backup/
 httpd/
+log/
 
 # Config Files
 config.json
