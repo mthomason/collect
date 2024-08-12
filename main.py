@@ -4,6 +4,7 @@
 import json
 import uuid
 import markdown
+import logging
 
 from random import randint
 from dotenv import load_dotenv
@@ -14,6 +15,7 @@ from datetime import datetime, timedelta
 from io import StringIO
 from typing import Generator, Callable
 
+from collect.logging_config import setup_logging
 from collect.string_adorner import StringAdorner
 from collect.filepathtools import FilePathTools
 from collect.apicache import APICache
@@ -318,6 +320,10 @@ class CollectBot:
 	Main function
 '''
 if __name__ == "__main__":
+	setup_logging("log/collectbot.log")
+	logger = logging.getLogger(__name__)
+	logger.info('Application started')
+
 	collectbot: CollectBot = CollectBot()
 	collectbotTemplate: CollectBotTemplate = CollectBotTemplate()
 
