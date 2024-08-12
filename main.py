@@ -14,12 +14,46 @@ from datetime import datetime, timedelta
 from io import StringIO
 from typing import Generator, Callable
 
+from collect.string_adorner import StringAdorner
 from collect.filepathtools import FilePathTools
 from collect.apicache import APICache
 from collect.imagecache import ImageCache
 from collect.ebayapi import eBayAPI
 from collect.promptchat import PromptPersonalityAuctioneer
 from collect.rss_tool import RssTool
+
+class CollectBotTemplate:
+	_adorner: StringAdorner = StringAdorner()
+
+	@_adorner.md_adornment("**")
+	def md_make_bold(s: str) -> str: return s
+
+	@_adorner.html_wrapper_attributes("div", {"class": "nameplate"})
+	def make_nameplate(s: str) -> str: return s
+
+	@_adorner.html_wrapper_attributes("div", {"class": "container"})
+	def make_container(s: str) -> str: return s
+
+	@_adorner.html_wrapper_attributes("div", {"class": "section"})
+	def make_section(s: str) -> str: return s
+
+	@_adorner.html_wrapper_attributes("div", {"class": "content"})
+	def make_content(s: str) -> str: return s
+
+	@_adorner.html_wrapper_attributes("div", {"class": "lead-headline"})
+	def make_lead_headline(s: str) -> str: return s
+
+	@_adorner.html_wrapper_attributes("div", {"class": "section-header-auctions"})
+	def make_section_header_auctions(s: str) -> str: return s
+
+	@_adorner.html_wrapper_attributes("h1", {"class": "header_1"})
+	def make_h1(s: str) -> str: return s
+
+	@_adorner.html_wrapper_attributes("h2", {"class": "header_2"})
+	def make_h2(s: str) -> str: return s
+
+	@_adorner.html_wrapper_attributes("h3", {"class": "header_3"})
+	def make_h3(s: str) -> str: return s
 
 def top_item_to_markdown(item_id: str, items: list[dict[str, any]], epn_category: str) -> str:
 	"""This is the most watched collectable item."""
@@ -284,8 +318,8 @@ class CollectBot:
 	Main function
 '''
 if __name__ == "__main__":
-
 	collectbot: CollectBot = CollectBot()
+	collectbotTemplate: CollectBotTemplate = CollectBotTemplate()
 
 	# Program Initalization
 	if not load_dotenv():
@@ -337,31 +371,21 @@ if __name__ == "__main__":
 
 	buffer_html.write("\t<div class=\"newspaper\">\n")
 
-	buffer_html.write("\t\t<div class=\"nameplate\">\n\t\t\t")
-	buffer_md.write("# Hobby Report {: .header_1 }\n\n")
-	buffer_html.write(markdown.markdown(buffer_md.getvalue(), extensions=extensions))
-	buffer_html.write("\n\t\t</div>\n")
-	buffer_md.seek(0)
-	buffer_md.truncate(0)
+	nameplate: str = CollectBotTemplate.make_h1(app_name)
+	nameplate = CollectBotTemplate.make_nameplate(nameplate)
+	buffer_html.write(nameplate)
 
-	buffer_html.write("\t\t<div class=\"lead-headline\">\n")
 	top_item_id: str = get_top_item_id(all_items)
 	top_item_md: str = top_item_to_markdown(top_item_id, all_items, epn_category=collectbot.epn_category_headline_link)
-	buffer_md.write(top_item_md)
-	buffer_html.write(markdown.markdown(buffer_md.getvalue(), extensions=extensions))
-	buffer_md.seek(0)
-	buffer_md.truncate(0)
-	buffer_html.write("\n\t\t</div>\n")
+	lead_headline: str = markdown.markdown(top_item_md, extensions=extensions)
+	lead_headline = CollectBotTemplate.make_lead_headline(lead_headline)
+	buffer_html.write(lead_headline)
 
 	all_items.clear()
 
-	buffer_html.write("\t\t<div class=\"section-header-auctions\">\n")
-	buffer_md.write("## Auctions {: .header_2 }\n\n")
-	buffer_html.write(markdown.markdown(buffer_md.getvalue(), extensions=extensions))
-	buffer_md.seek(0)
-	buffer_md.truncate(0)
-	buffer_html.write("\n\t\t</div>\n")
-
+	section_header: str = CollectBotTemplate.make_h2("Auctions")
+	section_header = CollectBotTemplate.make_section_header_auctions(section_header)
+	buffer_html.write(section_header)
 
 	sections: list[dict[str, object]] = [
 			{"header": "Trading Cards", "items": items_trading_cards, "exclude": [top_item_id], "epn_category": collectbot.epn_category_id("trading_cards")},
@@ -381,27 +405,20 @@ if __name__ == "__main__":
 		]
 
 	buffer_html.write("<div class=\"container\">\n")
+
+	buffer_html_section: StringIO = StringIO()
+
 	for section in sections:
-		buffer_html.write("<div class=\"section\">\n")
-		buffer_md.write("\n### ")
-		buffer_md.write(section['header'])
-		buffer_md.write(" {: .header_3 }\n\n")
-		html_from_md: str = markdown.markdown(buffer_md.getvalue(), extensions=extensions)
-		buffer_html.write(html_from_md)
-		buffer_md.seek(0)
-		buffer_md.truncate(0)
-		buffer_html.write("<div class=\"content\">\n")
-		md_from_search_results: str = search_results_to_markdown(
-			items=section['items'],
-			epn_category=section['epn_category'],
-			exclude=section['exclude']
-		)
-		buffer_md.write(md_from_search_results)
-		html_from_md = markdown.markdown(buffer_md.getvalue(), extensions=extensions)
-		buffer_html.write(html_from_md)
-		buffer_html.write("</div>\n</div>\n")
-		buffer_md.seek(0)
-		buffer_md.truncate(0)
+		h3: str = CollectBotTemplate.make_h3(section['header'])
+		buffer_html_section.write(h3)
+		md: str = search_results_to_markdown(items=section['items'], epn_category=section['epn_category'], exclude=section['exclude'])
+		md = markdown.markdown(md, extensions=extensions)
+		md = CollectBotTemplate.make_content(md)
+		buffer_html_section.write(md)
+		section_html: str = CollectBotTemplate.make_section(buffer_html_section.getvalue())
+		buffer_html.write(section_html)
+		buffer_html_section.seek(0)
+		buffer_html_section.truncate(0)
 
 	buffer_html.write("</div>\n")
 
