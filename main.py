@@ -26,6 +26,28 @@ from collect.rss_tool import RssTool
 
 class CollectBotTemplate:
 	_adorner: StringAdorner = StringAdorner()
+	_md: markdown.Markdown = markdown.Markdown(extensions=['attr_list'])
+
+	def generate_html_section(title: str, extensions: list[str], fetch_func: Callable[[], Generator[dict[str, str], None, None]]):
+		buffer_html: StringIO = StringIO()
+		buffer_html.write("<div class=\"section\">\n")
+		buffer_html.write(CollectBotTemplate.make_h3(title))
+		buffer_html.write("\n<div class=\"content\">\n")
+
+		buffer_md: StringIO = StringIO()
+		for item in fetch_func():
+			buffer_md.write(" * [")
+			buffer_md.write(item['title'])
+			buffer_md.write("](")
+			buffer_md.write(item['link'])
+			buffer_md.write(")\n")
+
+		buffer_html.write(CollectBotTemplate._md.convert(buffer_md.getvalue()))
+		#buffer_html.write(markdown.markdown(buffer_md.getvalue(), extensions=extensions))
+		buffer_html.write("</div>\n</div>\n")
+		buffer_md.close()
+
+		return buffer_html.getvalue()
 
 	@_adorner.md_adornment("**")
 	def md_make_bold(s: str) -> str: return s
@@ -39,14 +61,23 @@ class CollectBotTemplate:
 	@_adorner.html_wrapper_attributes("div", {"class": "section"})
 	def make_section(s: str) -> str: return s
 
+	@_adorner.html_wrapper_attributes("div", {"class": "news"})
+	def make_news(s: str) -> str: return s
+
+	@_adorner.html_wrapper_attributes("div", {"class": "auctions"})
+	def make_auctions(s: str) -> str: return s
+
 	@_adorner.html_wrapper_attributes("div", {"class": "content"})
 	def make_content(s: str) -> str: return s
 
 	@_adorner.html_wrapper_attributes("div", {"class": "lead-headline"})
 	def make_lead_headline(s: str) -> str: return s
 
-	@_adorner.html_wrapper_attributes("div", {"class": "section-header-auctions"})
+	@_adorner.html_wrapper_attributes("div", {"class": "header-auctions"})
 	def make_section_header_auctions(s: str) -> str: return s
+
+	@_adorner.html_wrapper_attributes("div", {"class": "header-news"})
+	def make_section_header_news(s: str) -> str: return s
 
 	@_adorner.html_wrapper_attributes("h1", {"class": "header_1"})
 	def make_h1(s: str) -> str: return s
@@ -56,6 +87,7 @@ class CollectBotTemplate:
 
 	@_adorner.html_wrapper_attributes("h3", {"class": "header_3"})
 	def make_h3(s: str) -> str: return s
+
 
 def top_item_to_markdown(item_id: str, items: list[dict[str, any]], epn_category: str) -> str:
 	"""This is the most watched collectable item."""
@@ -244,34 +276,6 @@ def get_top_item_id(search_results: list[dict[str, any]]) -> str:
 
 	return max_item_id
 
-def generate_html_section(buffer_html: StringIO,
-						  buffer_md: StringIO,
-						  title: str,
-						  extensions: list,
-						  fetch_func: Callable[[], Generator[dict[str, str], None, None]]):
-						  
-	buffer_html.write("<div class=\"section\">\n")
-	buffer_md.write("\n### ")
-	buffer_md.write(title)
-	buffer_md.write(" {: .header_3 }\n\n")
-	html_from_md = markdown.markdown(buffer_md.getvalue(), extensions=extensions)
-	buffer_html.write(html_from_md)
-	buffer_md.seek(0)
-	buffer_md.truncate(0)
-	buffer_html.write("\n<div class=\"content\">\n")
-	for item in fetch_func():
-		buffer_md.write(" * [")
-		buffer_md.write(item['title'])
-		buffer_md.write("](")
-		buffer_md.write(item['link'])
-		buffer_md.write(")\n")
-
-	html_from_md = markdown.markdown(buffer_md.getvalue(), extensions=extensions)
-	buffer_html.write(html_from_md)
-	buffer_md.seek(0)
-	buffer_md.truncate(0)
-	buffer_html.write("</div>\n</div>\n")
-
 class CollectBot:
 	"""This is the main class for the CollectBot."""
 	def __init__(self):
@@ -335,7 +339,6 @@ if __name__ == "__main__":
 	app_id: uuid = uuid.UUID("27DC793C-9C69-4565-B611-9318933CA561")
 	app_name: str = "Hobby Report"
 
-	buffer_md: StringIO = StringIO()
 	refresh_time: int = 8 * 60 * 60
 
 	buffer_html: StringIO = StringIO(initial_value="")
@@ -389,9 +392,10 @@ if __name__ == "__main__":
 
 	all_items.clear()
 
+	buffer_html_auctions: StringIO = StringIO()
 	section_header: str = CollectBotTemplate.make_h2("Auctions")
 	section_header = CollectBotTemplate.make_section_header_auctions(section_header)
-	buffer_html.write(section_header)
+	buffer_html_auctions.write(section_header)
 
 	sections: list[dict[str, object]] = [
 			{"header": "Trading Cards", "items": items_trading_cards, "exclude": [top_item_id], "epn_category": collectbot.epn_category_id("trading_cards")},
@@ -410,23 +414,25 @@ if __name__ == "__main__":
 			{"header": "Collectables", "items": items_collectables, "exclude": [top_item_id], "epn_category": collectbot.epn_category_id("collectables")}
 		]
 
-	buffer_html.write("<div class=\"container\">\n")
-
-	buffer_html_section: StringIO = StringIO()
-
+	buffer_html_sections: StringIO = StringIO()
 	for section in sections:
-		h3: str = CollectBotTemplate.make_h3(section['header'])
-		buffer_html_section.write(h3)
+		buffer_html_section: StringIO = StringIO()
+		buffer_html_section.write(CollectBotTemplate.make_h3(section['header']))
 		md: str = search_results_to_markdown(items=section['items'], epn_category=section['epn_category'], exclude=section['exclude'])
-		md = markdown.markdown(md, extensions=extensions)
+		md = CollectBotTemplate._md.convert(md)
 		md = CollectBotTemplate.make_content(md)
 		buffer_html_section.write(md)
-		section_html: str = CollectBotTemplate.make_section(buffer_html_section.getvalue())
-		buffer_html.write(section_html)
+
+		buffer_html_sections.write(CollectBotTemplate.make_section(buffer_html_section.getvalue()))
 		buffer_html_section.seek(0)
 		buffer_html_section.truncate(0)
 
-	buffer_html.write("</div>\n")
+	buffer_html_auctions.write(CollectBotTemplate.make_container(buffer_html_sections.getvalue()))
+
+	buffer_html.write(CollectBotTemplate.make_auctions(buffer_html_auctions.getvalue()))
+	
+	buffer_html_auctions.seek(0)
+	buffer_html_auctions.truncate(0)
 
 	items_trading_cards.clear()
 	items_non_sports.clear()
@@ -443,73 +449,61 @@ if __name__ == "__main__":
 	items_toys_hobbies.clear()
 	items_collectables.clear()
 
-	buffer_md.seek(0)
-	buffer_md.truncate(0)
+	section_header = CollectBotTemplate.make_h2("News")
+	section_header = CollectBotTemplate.make_section_header_news(section_header)
+	buffer_html_auctions.write(section_header)
 
-	buffer_html.write("<div class=\"section-header-news\">\n")
-	buffer_md.write("## News {: .header_2 }\n\n")
-	buffer_html.write(markdown.markdown(buffer_md.getvalue(), extensions=extensions))
-	buffer_md.seek(0)
-	buffer_md.truncate(0)
-	buffer_html.write("</div>\n")
-
-	buffer_html.write("<div class=\"container\">\n")
+	buffer_html_auctions.write("<div class=\"container\">\n")
 
 	cache_filepath: str = path.join(collectbot.filepath_cache_directory, "rss_becket.json")
-	rss_tool: RssTool = RssTool(url="https://www.beckett.com/news/feed/",
-							 	cache_duration=60*30*3,
-								cache_file=cache_filepath)
-	generate_html_section(
-		buffer_html=buffer_html,
-		buffer_md=buffer_md,
+	rss_tool: RssTool = RssTool(url="https://www.beckett.com/news/feed/", cache_duration=60*30*3, cache_file=cache_filepath)
+	html_section: str = CollectBotTemplate.generate_html_section(
 		title="Releases",
 		extensions=extensions,
 		fetch_func=rss_tool.fetch
 	)
+	buffer_html_auctions.write(html_section)
 
 	cache_filepath = path.join(collectbot.filepath_cache_directory, "rss_sports-collector-daily.json")
 	rss_tool = RssTool(url="https://www.sportscollectorsdaily.com/category/sports-card-news/feed/",
 					cache_duration=60*60*1,
 					cache_file=cache_filepath)
 	
-	generate_html_section(
-		buffer_html=buffer_html, 
-		buffer_md=buffer_md, 
-		title="Sports Cards News", 
+	html_section = CollectBotTemplate.generate_html_section(
+		title="Sports Cards News",
 		extensions=extensions,
 		fetch_func=rss_tool.fetch
 	)
+	buffer_html_auctions.write(html_section)
 
 	cache_filepath = path.join(collectbot.filepath_cache_directory, "rss_comicbook-com.json")
 	rss_tool = RssTool(url="https://comicbook.com/feed/rss/",
 					cache_duration=60*60*1,
 					cache_file="cache/rss_comicbook-com.json")
 	
-	generate_html_section(
-		buffer_html=buffer_html, 
-		buffer_md=buffer_md, 
-		title="Comic News", 
+	html_section = CollectBotTemplate.generate_html_section(
+		title="Comic News",
 		extensions=extensions,
 		fetch_func=rss_tool.fetch
 	)
+	buffer_html_auctions.write(html_section)
 
 	cache_filepath = path.join(collectbot.filepath_cache_directory, "rss_coin-week.json")
 	rss_tool = RssTool(url="https://coinweek.com/feed/",
 					cache_duration=60*60*4,
 					cache_file=cache_filepath)
 	
-	generate_html_section(
-		buffer_html=buffer_html, 
-		buffer_md=buffer_md, 
-		title="Coin News", 
+	html_section = CollectBotTemplate.generate_html_section(
+		title="Coin News",
 		extensions=extensions,
 		fetch_func=rss_tool.fetch
 	)
+	buffer_html_auctions.write(html_section)
 
-	buffer_html.write("</div>\n")
-	buffer_html.write("</div>\n")
+	buffer_html_auctions.write("</div>\n")
+	buffer_html_auctions.write("</div>\n")
 
-	buffer_md.close()
+	buffer_html.write(CollectBotTemplate.make_news(buffer_html_auctions.getvalue()))
 
 	with open('templates/footer.html', 'r', encoding="utf-8") as file:
 		buffer_html.write(file.read())
