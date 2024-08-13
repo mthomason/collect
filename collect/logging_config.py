@@ -1,3 +1,6 @@
+# /collect/logging_config.py
+# -*- coding: utf-8 -*-
+
 import logging
 
 def setup_logging(log_file_path: str) -> None:
