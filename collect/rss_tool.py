@@ -5,6 +5,7 @@ import json
 import os
 import xml.etree.ElementTree as ElementTree
 
+from os import path
 from collect.fetch_bot import FetchBot
 from datetime import datetime, timedelta
 from requests.models import Response
@@ -13,10 +14,12 @@ from xml.etree.ElementTree import Element
 
 class RssTool:
 	def __init__(self, url: str, cache_duration: int = 28800,
-			  max_results: int = 10, cache_file: str = "rss_cache.json"):
+			  max_results: int = 10, cache_directory: str ="cache", cache_file: str = "cache"):
 		self._url: str = url
 		self._max_results: int = max_results
+		self.cache_filepath: str = path.join(cache_directory, "rss_coin-week.json")
 		self.cache_file: str = cache_file
+		self.cache_directory: str = cache_directory
 		self.cache_duration: timedelta = timedelta(seconds=cache_duration)
 		self._last_fetch_time: datetime | None = None
 		self._cache: list[dict[str, str]] = []
@@ -67,8 +70,8 @@ class RssTool:
 
 	def _load_cache_from_file(self):
 		"""Load cache and last fetch time from a file."""
-		if os.path.exists(self.cache_file):
-			with open(self.cache_file, "r") as file:
+		if os.path.exists(self.cache_filepath):
+			with open(self.cache_filepath, "r") as file:
 				data = json.load(file)
 				self._cache = data.get("cache", [])
 				last_fetch_time_str = data.get("last_fetch_time")
@@ -81,7 +84,7 @@ class RssTool:
 			"cache": self._cache,
 			"last_fetch_time": self._last_fetch_time.isoformat() if self._last_fetch_time else None
 		}
-		with open(self.cache_file, "w") as file:
+		with open(self.cache_filepath, "w") as file:
 			json.dump(data, file, indent="\t")
 
 if __name__ == "__main__":
@@ -89,7 +92,7 @@ if __name__ == "__main__":
 	def _test() -> None:
 		url = "https://www.beckett.com/news/feed/"
 		cache_file = "cache/becket_rss.json"
-		rss_tool = RssTool(url, cache_duration=28800, cache_file=cache_file)
+		rss_tool = RssTool(url, cache_duration=28800, cache_directory="cache/", cache_filepath=cache_file)
 		for item in rss_tool.fetch():
 			print(item)
 
