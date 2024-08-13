@@ -20,14 +20,10 @@ class ImageCache:
 	
 	def cache_file_name(self) -> str:
 		parsed_url: any = urllib.parse.urlparse(self.url)
-		path = parsed_url.path
-
-
-		last_dot = path.rfind('.')
+		last_dot = parsed_url.path.rfind('.')
 		if last_dot == -1:
 			raise ValueError("The URL does not contain a file extension.")
-		extension = path[last_dot:]
-		filename = "".join([self.identifier, extension])
+		filename: str = "".join([self.identifier, parsed_url.path[last_dot:]])
 		return filename
 
 	def cache_file_path(self) -> str:

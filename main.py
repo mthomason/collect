@@ -291,9 +291,9 @@ class CollectBot:
 			}
 		"""
 		self._config: dict[str, any] = {}
-		with open("config.json", "r") as file:
+		with open("config/config.json", "r") as file:
 			self._config = json.load(file)
-		with open("epn-categories.json", "r") as file:
+		with open("config/epn-categories.json", "r") as file:
 			self._epn_categories = json.load(file)
 
 	@property
@@ -428,7 +428,6 @@ if __name__ == "__main__":
 		buffer_html_section.truncate(0)
 
 	buffer_html_auctions.write(CollectBotTemplate.make_container(buffer_html_sections.getvalue()))
-
 	buffer_html.write(CollectBotTemplate.make_auctions(buffer_html_auctions.getvalue()))
 	
 	buffer_html_auctions.seek(0)
@@ -477,9 +476,7 @@ if __name__ == "__main__":
 	buffer_html_auctions.write(html_section)
 
 	cache_filepath = path.join(collectbot.filepath_cache_directory, "rss_comicbook-com.json")
-	rss_tool = RssTool(url="https://comicbook.com/feed/rss/",
-					cache_duration=60*60*1,
-					cache_file="cache/rss_comicbook-com.json")
+	rss_tool = RssTool(url="https://comicbook.com/feed/rss/", cache_duration=60*60*1, cache_file=cache_filepath)
 	
 	html_section = CollectBotTemplate.generate_html_section(
 		title="Comic News",
@@ -489,9 +486,7 @@ if __name__ == "__main__":
 	buffer_html_auctions.write(html_section)
 
 	cache_filepath = path.join(collectbot.filepath_cache_directory, "rss_coin-week.json")
-	rss_tool = RssTool(url="https://coinweek.com/feed/",
-					cache_duration=60*60*4,
-					cache_file=cache_filepath)
+	rss_tool = RssTool(url="https://coinweek.com/feed/", cache_duration=60*60*4, cache_file=cache_filepath)
 	
 	html_section = CollectBotTemplate.generate_html_section(
 		title="Coin News",

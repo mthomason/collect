@@ -3,16 +3,12 @@
 
 import json
 import os
-import platform
-import requests
 import xml.etree.ElementTree as ElementTree
 
 from collect.fetch_bot import FetchBot
 from datetime import datetime, timedelta
-from requests.models import PreparedRequest, Request, Response
+from requests.models import Response
 from typing import Final, Generator
-from urllib.parse import urlparse, ParseResult
-from urllib.robotparser import RobotFileParser
 from xml.etree.ElementTree import Element
 
 class RssTool:

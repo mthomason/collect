@@ -21,7 +21,7 @@ class eBayAPI:
 
 	@staticmethod
 	def generate_epn_link(original_url: str, campaign_id: str, custom_id: str = '') -> str:
-		base_params = {
+		base_params: dict[str, str] = {
 			'mkcid': '1',
 			'mkrid': '711-53200-19255-0',
 			'siteid': '0',

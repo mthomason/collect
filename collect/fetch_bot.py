@@ -5,9 +5,8 @@ from random import randint
 import requests
 import time
 
-from datetime import datetime, timedelta
 from requests.models import Request, Response
-from typing import Final, Optional
+from typing import Final
 from urllib.parse import urlparse, ParseResult
 from urllib.robotparser import RobotFileParser
 
@@ -56,7 +55,6 @@ class FetchBot:
 	def robots_url(self) -> str:
 		"""Return the URL for the robots.txt file."""
 		parsed_url: ParseResult = urlparse(self._url)
-		
 		return f"{parsed_url.scheme}://{parsed_url.netloc}/robots.txt"
 
 	def cache_robots_txt_ttl(self) -> int:
