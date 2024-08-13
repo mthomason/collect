@@ -52,8 +52,17 @@ class CollectBotTemplate:
 	@_adorner.md_adornment("**")
 	def md_make_bold(s: str) -> str: return s
 
-	@_adorner.html_wrapper_attributes("div", {"class": "nameplate"})
+	@_adorner.html_wrapper_attributes("div", {"id": "nameplate"})
 	def make_nameplate(s: str) -> str: return s
+
+	@_adorner.html_wrapper_attributes("div", {"id": "lead-headline"})
+	def make_lead_headline(s: str) -> str: return s
+
+	@_adorner.html_wrapper_attributes("div", {"id": "auctions"})
+	def make_auctions(s: str) -> str: return s
+
+	@_adorner.html_wrapper_attributes("div", {"id": "news"})
+	def make_news(s: str) -> str: return s
 
 	@_adorner.html_wrapper_attributes("div", {"class": "container"})
 	def make_container(s: str) -> str: return s
@@ -61,17 +70,8 @@ class CollectBotTemplate:
 	@_adorner.html_wrapper_attributes("div", {"class": "section"})
 	def make_section(s: str) -> str: return s
 
-	@_adorner.html_wrapper_attributes("div", {"class": "news"})
-	def make_news(s: str) -> str: return s
-
-	@_adorner.html_wrapper_attributes("div", {"class": "auctions"})
-	def make_auctions(s: str) -> str: return s
-
 	@_adorner.html_wrapper_attributes("div", {"class": "content"})
 	def make_content(s: str) -> str: return s
-
-	@_adorner.html_wrapper_attributes("div", {"class": "lead-headline"})
-	def make_lead_headline(s: str) -> str: return s
 
 	@_adorner.html_wrapper_attributes("div", {"class": "header-auctions"})
 	def make_section_header_auctions(s: str) -> str: return s
@@ -378,7 +378,7 @@ if __name__ == "__main__":
 	with open('templates/header.html', 'r', encoding="utf-8") as input_file:
 		buffer_html.write(input_file.read())
 
-	buffer_html.write("\t<div class=\"newspaper\">\n")
+	buffer_html.write("\t<div id=\"newspaper\">\n")
 
 	nameplate: str = CollectBotTemplate.make_h1(app_name)
 	nameplate = CollectBotTemplate.make_nameplate(nameplate)

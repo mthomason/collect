@@ -7,7 +7,7 @@
 5. [x] Create something related to other websites rss feeds
 6. [x] Cache all images
 7. [ ] Add filepath overrides for cache, images, and generated files
-8. [ ] Improve page layout
+8. [x] Improve page layout
 9. [ ] Set link until date when cache is created
 10. [ ] Add a way to enter custom text
 11. [x] Create Twitter-X account

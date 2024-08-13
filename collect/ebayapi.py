@@ -5,7 +5,7 @@ import os
 import urllib.parse
 from ebaysdk.finding import Connection as Finding
 from ebaysdk.exception import ConnectionError
-from urllib.parse import urlencode, urlparse, urlunparse, parse_qsl
+from urllib.parse import urlencode, urlparse, urlunparse, parse_qsl, ParseResult
 
 class eBayAPI:
 	def __init__(self):
@@ -31,12 +31,11 @@ class eBayAPI:
 			'mkevt': '1'
 		}
 
-		url_parts = list(urlparse(original_url))
-		query = dict(parse_qsl(url_parts[4]))
+		url_parts: ParseResult = urlparse(original_url)
+		query: dict = dict(parse_qsl(url_parts.query))
 		query.update(base_params)
-		url_parts[4] = urlencode(query)
-
-		return urlunparse(url_parts)
+		url_new: ParseResult = ParseResult(url_parts.scheme, url_parts.netloc, url_parts.path, url_parts.params, urlencode(query), url_parts.fragment)
+		return urlunparse(url_new)
 
 	def generate_epn_link_rover(ebay_url: str, tracking_id: str, campaign_id: str) -> str:
 		program_id = "710-53481-19255-0"  # Check your EPN account for the correct value
