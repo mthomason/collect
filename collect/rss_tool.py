@@ -13,11 +13,20 @@ from typing import Final, Generator
 from xml.etree.ElementTree import Element
 
 class RssTool:
-	def __init__(self, url: str, cache_duration: int = 28800,
-			  max_results: int = 10, cache_directory: str ="cache", cache_file: str = "cache"):
-		self._url: str = url
+	def __init__(self, urls: list[str] | None = None, url: str | None = None, cache_duration: int = 28800,
+			  max_results: int = 10, cache_directory: str ="cache", cache_file: str = "rss_cache.json"):
+
+		if not url and not urls:
+			raise ValueError("Either url or urls must be provided.")
+		elif url:
+			self._urls: list[str] = [url]
+			if urls:
+				self._urls.extend(urls)
+		else:
+			self._urls: list[str] = urls
+
 		self._max_results: int = max_results
-		self.cache_filepath: str = path.join(cache_directory, "rss_coin-week.json")
+		self.cache_filepath: str = path.join(cache_directory, cache_file)
 		self.cache_file: str = cache_file
 		self.cache_directory: str = cache_directory
 		self.cache_duration: timedelta = timedelta(seconds=cache_duration)
@@ -44,26 +53,28 @@ class RssTool:
 	def _update_cache(self) -> list[dict[str, str]]:
 		"""Fetch data from the URL and update the cache."""
 
-		request_bot: FetchBot = FetchBot(self._url)
-		if not request_bot.obey_robots_txt():
-			raise ValueError("The URL is disallowed by robots.txt.")
-
-		response: Response = request_bot.fetch()
-				
-		if response.status_code != 200:
-			raise ValueError(f"Failed to fetch data from {self._url}.")
-
-		root: Element = ElementTree.fromstring(response.content)
-
 		new_cache: list = []
-		i: int = 0
-		for item in root.findall(".//item"):
-			if i >= self._max_results:
-				break
-			title: str = item.find("title").text
-			link: str = item.find("link").text
-			new_cache.append({"title": title, "link": link})
-			i += 1
+
+		for url in self._urls:
+			request_bot: FetchBot = FetchBot(url)
+			if not request_bot.obey_robots_txt():
+				raise ValueError("The URL is disallowed by robots.txt.")
+
+			response: Response = request_bot.fetch()
+				
+			if response.status_code != 200:
+				raise ValueError(f"Failed to fetch data from {url}.")
+
+			root: Element = ElementTree.fromstring(response.content)
+
+			i: int = 0
+			for item in root.findall(".//item"):
+				if i >= self._max_results:
+					break
+				title: str = item.find("title").text
+				link: str = item.find("link").text
+				new_cache.append({"title": title, "link": link})
+				i += 1
 
 		self._last_fetch_time = datetime.now()
 		return new_cache
@@ -91,8 +102,8 @@ if __name__ == "__main__":
 	import sys
 	def _test() -> None:
 		url = "https://www.beckett.com/news/feed/"
-		cache_file = "cache/becket_rss.json"
-		rss_tool = RssTool(url, cache_duration=28800, cache_directory="cache/", cache_filepath=cache_file)
+		cache_file = "becket_rss.json"
+		rss_tool = RssTool(url, cache_duration=28800, cache_directory="cache/", cache_file=cache_file)
 		for item in rss_tool.fetch():
 			print(item)
 
