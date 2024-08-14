@@ -11,6 +11,7 @@ class ImageCache:
 
 		self.url = url
 		self.identifier = identifier
+		self._downloaded_image = False
 		
 		# Create cache directory if it doesn't exist
 		if not os.path.exists(cache_dir):
@@ -47,7 +48,8 @@ class ImageCache:
 		if os.path.exists(cache_file_path):
 			return True
 		else:
-			return self.read_image_from_url()
+			self._downloaded_image = self.read_image_from_url()
+			return self._downloaded_image
 
 	def get_image_path(self) -> str:
 		"""Ensures the image is cached and returns the local path to the image."""
