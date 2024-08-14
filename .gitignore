@@ -9,8 +9,6 @@ log/
 # Config Files
 config.json
 epn-categories.json
-newspaper.html
-style_newspaper.css
 
 # Environment variables
 .env
