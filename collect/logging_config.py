@@ -3,9 +3,9 @@
 
 import logging
 
-def setup_logging(log_file_path: str) -> None:
+def setup_logging(log_file_path: str, log_level: int = logging.INFO) -> None:
 	logging.basicConfig(
-		level=logging.WARNING,
+		level=log_level,
 		format="%(asctime)s %(name)s %(levelname)s: %(message)s",
 		handlers=[
 			logging.FileHandler(log_file_path),
