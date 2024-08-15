@@ -80,6 +80,10 @@ class CollectBotTemplate:
 		return buffer.getvalue()
 
 	def html_wrapper(tag: str, content: str, attributes: dict = None) -> str:
+		assert tag, "tag is required."
+		assert content, "content is required."
+		if not attributes:
+			return f'<{tag}>{content}</{tag}>'
 		attrs = " ".join([f'{k}="{v}"' for k, v in (attributes or {}).items()])
 		return f'<{tag} {attrs}>{content}</{tag}>'
 
@@ -543,7 +547,6 @@ class CollectBot:
 		#invalidation_id = cf.create_invalidation(['/style.css'])
 		#logger.info(f"Invalidation ID: {invalidation_id}")
 
-
 '''
 	Main function
 '''
@@ -566,116 +569,79 @@ if __name__ == "__main__":
 	app_id: uuid = uuid.UUID("27DC793C-9C69-4565-B611-9318933CA561")
 	app_name: str = "Hobby Report"
 
-	ebay_refresh_time: int = 8 * 60 * 60
+	ebay_refresh_time: int = 4 * 60 * 60
 
 	buffer_html: StringIO = StringIO(initial_value="")
-	extensions: list[str] = ['attr_list']
-
-	# Initialize the eBay API tools
-	ebay_tools: EBayAPITools = EBayAPITools(cache_dir=collectbot.filepath_cache_directory, image_dir=collectbot.filepath_image_directory)
-	items_trading_cards: list[dict[str, any]] = ebay_tools.search_top_items_from_catagory("212", ttl=ebay_refresh_time, max_results=20)
-	items_non_sports: list[dict[str, any]] = ebay_tools.search_top_items_from_catagory("183050", ttl=ebay_refresh_time, max_results=20)
-	items_comics: list[dict[str, any]] = ebay_tools.search_top_items_from_catagory("259104", ttl=ebay_refresh_time, max_results=10)
-	items_fossles: list[dict[str, any]] = ebay_tools.search_top_items_from_catagory("3213", ttl=ebay_refresh_time, max_results=6)
-	items_coins: list[dict[str, any]] = ebay_tools.search_top_items_from_catagory("253", ttl=ebay_refresh_time, max_results=6)
-	items_bobbleheads: list[dict[str, any]] = ebay_tools.search_top_items_from_catagory("149372", ttl=ebay_refresh_time, max_results=6)
-	items_autographs: list[dict[str, any]] = ebay_tools.search_top_items_from_catagory("14429", ttl=ebay_refresh_time, max_results=6)
-	items_military_relics: list[dict[str, any]] = ebay_tools.search_top_items_from_catagory("13956", ttl=ebay_refresh_time, max_results=6)
-	items_stamps: list[dict[str, any]] = ebay_tools.search_top_items_from_catagory("260", ttl=ebay_refresh_time, max_results=6)
-	items_antiques: list[dict[str, any]] = ebay_tools.search_top_items_from_catagory("20081", ttl=ebay_refresh_time, max_results=6)
-	items_art: list[dict[str, any]] = ebay_tools.search_top_items_from_catagory("550", ttl=ebay_refresh_time, max_results=6)
-	items_toys_hobbies: list[dict[str, any]] = ebay_tools.search_top_items_from_catagory("220", ttl=ebay_refresh_time, max_results=6)
-	items_luxury_watches: list[dict[str, any]] = ebay_tools.search_top_items_from_catagory("31387", ttl=ebay_refresh_time, max_results=10)
-	items_cars_and_trucks: list[dict[str, any]] = ebay_tools.search_top_items_from_catagory("6000", ttl=ebay_refresh_time, max_results=6)
-
-	all_items: list[dict[str, any]] = items_trading_cards.copy()
-	all_items.extend(items_non_sports)
-	all_items.extend(items_comics)
-	all_items.extend(items_fossles)
-	all_items.extend(items_coins)
-	all_items.extend(items_bobbleheads)
-	all_items.extend(items_autographs)
-	all_items.extend(items_military_relics)
-	all_items.extend(items_stamps)
-	all_items.extend(items_antiques)
-	all_items.extend(items_art)
-	all_items.extend(items_toys_hobbies)
-	all_items.extend(items_luxury_watches)
-	all_items.extend(items_cars_and_trucks)
-
-	# Write the HTML header
+	# Write the HTML header, nameplate, and lead headline
 	with open('templates/header.html', 'r', encoding="utf-8") as input_file:
 		buffer_html.write(input_file.read())
-
+		
 	buffer_html.write("\t<div id=\"newspaper\">\n")
 
 	nameplate: str = CollectBotTemplate.make_h1(app_name)
 	nameplate = CollectBotTemplate.make_nameplate(nameplate)
+
 	buffer_html.write(nameplate)
 
-	top_item_id: str = EBayAPITools.get_top_item_id(all_items)
-	top_item_md: str = ebay_tools.top_item_to_markdown(top_item_id, all_items, epn_category=collectbot.epn_category_headline_link)
-	lead_headline: str = markdown.markdown(top_item_md, extensions=extensions)
-	lead_headline = CollectBotTemplate.make_lead_headline(lead_headline)
-	buffer_html.write(lead_headline)
+	extensions: list[str] = ['attr_list']
 
-	all_items.clear()
+	# Initialize the eBay API tools
+	ebay_tools: EBayAPITools = EBayAPITools(cache_dir=collectbot.filepath_cache_directory, image_dir=collectbot.filepath_image_directory)
 
 	buffer_html_auctions: StringIO = StringIO()
-	section_header: str = CollectBotTemplate.make_h2("Auctions")
-	section_header = CollectBotTemplate.make_section_header_auctions(section_header)
-	buffer_html_auctions.write(section_header)
 
-	sections: list[dict[str, object]] = [
-			{"header": "Trading Cards", "items": items_trading_cards, "exclude": [top_item_id], "epn_category": collectbot.epn_category_id("trading_cards")},
-			{"header": "Non Sports", "items": items_non_sports, "exclude": [top_item_id], "epn_category": collectbot.epn_category_id("non_sports")},
-			{"header": "Comics", "items": items_comics, "exclude": [top_item_id], "epn_category": collectbot.epn_category_id("comics")},
-			{"header": "Luxury Watches", "items": items_luxury_watches, "exclude": [top_item_id], "epn_category": collectbot.epn_category_id("luxury_watches")},
-			{"header": "Rocks and Fossils", "items": items_fossles, "exclude": [top_item_id], "epn_category": collectbot.epn_category_id("rocks_and_fossils")},
-			{"header": "Autographs", "items": items_autographs, "exclude": [top_item_id], "epn_category": collectbot.epn_category_id("autographs")},
-			{"header": "Coins", "items": items_coins, "exclude": [top_item_id], "epn_category": collectbot.epn_category_id("coins")},
-			{"header": "Stamps", "items": items_stamps, "exclude": [top_item_id], "epn_category": collectbot.epn_category_id("stamps")},
-			{"header": "Antiques", "items": items_antiques, "exclude": [top_item_id], "epn_category": collectbot.epn_category_id("antiques")},
-			{"header": "Art", "items": items_art, "exclude": [top_item_id], "epn_category": collectbot.epn_category_id("art")},
-			{"header": "Toys and Hobbies", "items": items_toys_hobbies, "exclude": [top_item_id], "epn_category": collectbot.epn_category_id("toys_and_hobbies")},
-			{"header": "Military Relics", "items": items_military_relics, "exclude": [top_item_id], "epn_category": collectbot.epn_category_id("military_relics")},
-			{"header": "Bobbleheads", "items": items_bobbleheads, "exclude": [top_item_id], "epn_category": collectbot.epn_category_id("bobbleheads")},
-			{"header": "Cars and Trucks", "items": items_cars_and_trucks, "exclude": [top_item_id], "epn_category": collectbot.epn_category_id("cars_and_trucks")}
-		]
+	with open("config/auctions-ebay.json", "r") as file:
+		# Load the auctions
+		auctions_ebay = json.load(file)
 
-	buffer_html_sections: StringIO = StringIO()
-	for section in sections:
-		buffer_html_section: StringIO = StringIO()
-		buffer_html_section.write(CollectBotTemplate.make_h3(section['header']))
-		md: str = ebay_tools.search_results_to_markdown(items=section['items'], epn_category=section['epn_category'], exclude=section['exclude'])
-		md = collectbotTemplate._md.convert(md)
-		md = CollectBotTemplate.make_content(md)
-		buffer_html_section.write(md)
+		# Generate the HTML for the lead headline
+		lead_headline: str = ""
+		all_items: list[dict[str, any]] = []
+		for auction in auctions_ebay:
+			items: list[dict[str, any]] = ebay_tools.search_top_items_from_catagory(auction['id'], ttl=ebay_refresh_time, max_results=auction['count'])
+			auction['items'] = items
+			all_items.extend(items)
 
-		buffer_html_sections.write(CollectBotTemplate.make_section(buffer_html_section.getvalue()))
-		buffer_html_section.seek(0)
-		buffer_html_section.truncate(0)
+		top_item_id: str = EBayAPITools.get_top_item_id(all_items)
 
-	buffer_html_auctions.write(CollectBotTemplate.make_container(buffer_html_sections.getvalue()))
-	buffer_html.write(CollectBotTemplate.make_auctions(buffer_html_auctions.getvalue()))
-	
+		top_item_md: str = ebay_tools.top_item_to_markdown(top_item_id, all_items, epn_category=collectbot.epn_category_headline_link)
+		lead_headline = markdown.markdown(top_item_md, extensions=extensions)
+		if not lead_headline:
+			logger.error("lead_headline is required.")
+			raise ValueError("lead_headline is required.")
+		lead_headline = CollectBotTemplate.make_lead_headline(lead_headline)
+		all_items.clear()
+
+		# Write the lead headline
+		buffer_html.write(lead_headline)
+
+		section_header: str = CollectBotTemplate.make_h2("Auctions")
+		section_header = CollectBotTemplate.make_section_header_auctions(section_header)
+		buffer_html_auctions.write(section_header)
+
+		buffer_html_sections: StringIO = StringIO()
+		for auction in auctions_ebay:
+			buffer_html_section: StringIO = StringIO()
+			buffer_html_section.write(CollectBotTemplate.make_h3(auction['title']))
+			items: list[dict[str, any]] = auction['items']
+			search_result: str = ebay_tools.search_results_to_markdown(items=items, epn_category=auction['epn-category'], exclude=[top_item_id])
+			search_result = collectbotTemplate._md.convert(search_result)
+			search_result = CollectBotTemplate.make_content(search_result)
+			buffer_html_section.write(search_result)
+			
+			buffer_html_sections.write(CollectBotTemplate.make_section(buffer_html_section.getvalue()))
+			buffer_html_section.seek(0)
+			buffer_html_section.truncate(0)
+
+		
+		buffer_html_auctions.write(CollectBotTemplate.make_container(buffer_html_sections.getvalue()))
+		buffer_html.write(CollectBotTemplate.make_auctions(buffer_html_auctions.getvalue()))
+		buffer_html.write("\n")
+
+
+
 	buffer_html_auctions.seek(0)
 	buffer_html_auctions.truncate(0)
-
-	items_trading_cards.clear()
-	items_non_sports.clear()
-	items_comics.clear()
-	items_fossles.clear()
-	items_autographs.clear()
-	items_bobbleheads.clear()
-	items_military_relics.clear()
-	items_coins.clear()
-	items_stamps.clear()
-	items_antiques.clear()
-	items_art.clear()
-	items_toys_hobbies.clear()
-	items_luxury_watches.clear()
-	items_cars_and_trucks.clear()
 
 	section_header = CollectBotTemplate.make_h2("News")
 	section_header = CollectBotTemplate.make_section_header_news(section_header)
@@ -697,6 +663,7 @@ if __name__ == "__main__":
 	buffer_html.write(CollectBotTemplate.make_news(buffer_html_auctions.getvalue()))
 
 	with open('templates/footer.html', 'r', encoding="utf-8") as file:
+		buffer_html.write("\n")
 		buffer_html.write(file.read())
 
 	#Write to file named index.html

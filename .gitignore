@@ -10,6 +10,7 @@ log/
 config.json
 epn-categories.json
 rss-feeds.json
+auctions-ebay.json
 
 # Environment variables
 .env
