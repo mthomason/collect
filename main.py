@@ -25,6 +25,7 @@ from collect.ebayapi import eBayAPI
 from collect.promptchat import PromptPersonalityAuctioneer
 from collect.rss_tool import RssTool
 from collect.aws_helper import AwsS3Helper
+from collect.aws_helper import AwsCFHelper
 
 class BaseTemplate:
 	def __init__(self, adorner):
@@ -44,7 +45,7 @@ class BaseTemplate:
 			return wrapper
 		return decorator
 	
-	def html_wrapper(self, tag: str, content: str, attributes: dict = None) -> str:
+	def html_wrapper(tag: str, content: str, attributes: dict = None) -> str:
 		attrs = " ".join([f'{k}="{v}"' for k, v in (attributes or {}).items()])
 		return f'<{tag} {attrs}>{content}</{tag}>'
 
@@ -61,11 +62,11 @@ class CollectBotTemplate:
 	def __init__(self):
 		self._md = markdown.Markdown(extensions=['attr_list'])
 
-	def html_wrapper(self, tag: str, content: str, attributes: dict = None) -> str:
+	def html_wrapper(tag: str, content: str, attributes: dict = None) -> str:
 		attrs = " ".join([f'{k}="{v}"' for k, v in (attributes or {}).items()])
 		return f'<{tag} {attrs}>{content}</{tag}>'
 
-	def generate_html_section(self, title: str, fetch_func: Callable[[], Generator[dict[str, str], None, None]]) -> str:
+	def generate_html_section(title: str, fetch_func: Callable[[], Generator[dict[str, str], None, None]]) -> str:
 		buffer_html: StringIO = StringIO()
 		buffer_html.write("<div class=\"section\">\n")
 		buffer_html.write(CollectBotTemplate.make_h3(title))
@@ -73,9 +74,10 @@ class CollectBotTemplate:
 		buffer_html.write("<ul>\n")
 
 		for item in fetch_func():
-			link: str = self.html_wrapper("a", item['title'], {"href": item['link']})
-			list_item: str = self.html_wrapper("li", link)
+			link: str = CollectBotTemplate.html_wrapper("a", item['title'], {"href": item['link']})
+			list_item: str = CollectBotTemplate.html_wrapper("li", link)
 			buffer_html.write(list_item)
+			buffer_html.write("\n")
 
 		buffer_html.write("</ul>\n")
 		buffer_html.write("</div>\n")
@@ -483,14 +485,51 @@ class CollectBot:
 			r = self.epn_category_default
 		return r
 
+	def section_news(self, title: str, urls:list[dict[str, any]], interval: int, filename: str) -> str:
+		rss_tool: RssTool = RssTool(urls=urls, cache_duration=interval,
+									cache_directory=self.filepath_cache_directory,
+									cache_file=filename)
+		html_section: str = CollectBotTemplate.generate_html_section(
+			title=title,
+			fetch_func=rss_tool.fetch
+		)
+		return html_section
+
+	def backup_files(self):
+		"""Backs up the output file."""
+		FilePathTools.create_directory_if_not_exists("backup")
+		FilePathTools.backup_file(filepath_output, "backup")
+
+	def upload_to_s3(self):
+		"""Uploads the output file to S3."""
+		aws_helper: AwsS3Helper = AwsS3Helper(bucket_name='hobbyreport.net', region='us-east-1')
+		aws_helper.upload_images_with_tracking('httpd/i')
+		aws_helper.upload_file(file_path='httpd/index.html', object_name='index.html')
+		#aws_helper.upload_file(file_path='httpd/style.css', object_name='style.css')
+
+		#Create an invalidation for the CloudFront distribution
+		cf: AwsCFHelper = AwsCFHelper()
+		invalidation_id = cf.create_invalidation(['/index.html'])
+		logger.info(f"Invalidation ID: {invalidation_id} - /index.html")
+
+		invalidation_id = cf.create_invalidation(['/'])
+		logger.info(f"Invalidation ID: {invalidation_id} - /")
+
+		#invalidation_id = cf.create_invalidation(['/style.css'])
+		#logger.info(f"Invalidation ID: {invalidation_id}")
+
+
 '''
 	Main function
 '''
 if __name__ == "__main__":
+
+	# Setup logging
 	setup_logging("log/collectbot.log")
 	logger = logging.getLogger(__name__)
 	logger.info('Application started')
 
+	# Initialize the CollectBot and CollectBotTemplate
 	collectbot: CollectBot = CollectBot()
 	collectbotTemplate: CollectBotTemplate = CollectBotTemplate()
 
@@ -502,27 +541,27 @@ if __name__ == "__main__":
 	app_id: uuid = uuid.UUID("27DC793C-9C69-4565-B611-9318933CA561")
 	app_name: str = "Hobby Report"
 
-	refresh_time: int = 8 * 60 * 60
+	ebay_refresh_time: int = 8 * 60 * 60
 
 	buffer_html: StringIO = StringIO(initial_value="")
 	extensions: list[str] = ['attr_list']
 
 	# Initialize the eBay API tools
 	ebay_tools: EBayAPITools = EBayAPITools(cache_dir=collectbot.filepath_cache_directory, image_dir=collectbot.filepath_image_directory)
-	items_trading_cards: list[dict[str, any]] = ebay_tools.search_top_items_from_catagory("212", ttl=refresh_time, max_results=20)
-	items_non_sports: list[dict[str, any]] = ebay_tools.search_top_items_from_catagory("183050", ttl=refresh_time, max_results=20)
-	items_comics: list[dict[str, any]] = ebay_tools.search_top_items_from_catagory("259104", ttl=refresh_time, max_results=10)
-	items_fossles: list[dict[str, any]] = ebay_tools.search_top_items_from_catagory("3213", ttl=refresh_time, max_results=6)
-	items_coins: list[dict[str, any]] = ebay_tools.search_top_items_from_catagory("253", ttl=refresh_time, max_results=6)
-	items_bobbleheads: list[dict[str, any]] = ebay_tools.search_top_items_from_catagory("149372", ttl=refresh_time, max_results=6)
-	items_autographs: list[dict[str, any]] = ebay_tools.search_top_items_from_catagory("14429", ttl=refresh_time, max_results=6)
-	items_military_relics: list[dict[str, any]] = ebay_tools.search_top_items_from_catagory("13956", ttl=refresh_time, max_results=6)
-	items_stamps: list[dict[str, any]] = ebay_tools.search_top_items_from_catagory("260", ttl=refresh_time, max_results=6)
-	items_antiques: list[dict[str, any]] = ebay_tools.search_top_items_from_catagory("20081", ttl=refresh_time, max_results=6)
-	items_art: list[dict[str, any]] = ebay_tools.search_top_items_from_catagory("550", ttl=refresh_time, max_results=6)
-	items_toys_hobbies: list[dict[str, any]] = ebay_tools.search_top_items_from_catagory("220", ttl=refresh_time, max_results=6)
-	items_luxury_watches: list[dict[str, any]] = ebay_tools.search_top_items_from_catagory("31387", ttl=refresh_time, max_results=10)
-	items_cars_and_trucks: list[dict[str, any]] = ebay_tools.search_top_items_from_catagory("6000", ttl=refresh_time, max_results=6)
+	items_trading_cards: list[dict[str, any]] = ebay_tools.search_top_items_from_catagory("212", ttl=ebay_refresh_time, max_results=20)
+	items_non_sports: list[dict[str, any]] = ebay_tools.search_top_items_from_catagory("183050", ttl=ebay_refresh_time, max_results=20)
+	items_comics: list[dict[str, any]] = ebay_tools.search_top_items_from_catagory("259104", ttl=ebay_refresh_time, max_results=10)
+	items_fossles: list[dict[str, any]] = ebay_tools.search_top_items_from_catagory("3213", ttl=ebay_refresh_time, max_results=6)
+	items_coins: list[dict[str, any]] = ebay_tools.search_top_items_from_catagory("253", ttl=ebay_refresh_time, max_results=6)
+	items_bobbleheads: list[dict[str, any]] = ebay_tools.search_top_items_from_catagory("149372", ttl=ebay_refresh_time, max_results=6)
+	items_autographs: list[dict[str, any]] = ebay_tools.search_top_items_from_catagory("14429", ttl=ebay_refresh_time, max_results=6)
+	items_military_relics: list[dict[str, any]] = ebay_tools.search_top_items_from_catagory("13956", ttl=ebay_refresh_time, max_results=6)
+	items_stamps: list[dict[str, any]] = ebay_tools.search_top_items_from_catagory("260", ttl=ebay_refresh_time, max_results=6)
+	items_antiques: list[dict[str, any]] = ebay_tools.search_top_items_from_catagory("20081", ttl=ebay_refresh_time, max_results=6)
+	items_art: list[dict[str, any]] = ebay_tools.search_top_items_from_catagory("550", ttl=ebay_refresh_time, max_results=6)
+	items_toys_hobbies: list[dict[str, any]] = ebay_tools.search_top_items_from_catagory("220", ttl=ebay_refresh_time, max_results=6)
+	items_luxury_watches: list[dict[str, any]] = ebay_tools.search_top_items_from_catagory("31387", ttl=ebay_refresh_time, max_results=10)
+	items_cars_and_trucks: list[dict[str, any]] = ebay_tools.search_top_items_from_catagory("6000", ttl=ebay_refresh_time, max_results=6)
 
 	all_items: list[dict[str, any]] = items_trading_cards.copy()
 	all_items.extend(items_non_sports)
@@ -619,95 +658,16 @@ if __name__ == "__main__":
 
 	buffer_html_auctions.write("<div class=\"container\">\n")
 
-	rss_tool: RssTool = RssTool(url="https://www.beckett.com/news/feed/",
-							 cache_duration=60*30*3,
-							 cache_directory=collectbot.filepath_cache_directory,
-							 cache_file="rss_becket.json")
-	html_section: str = collectbotTemplate.generate_html_section(
-		title="Releases",
-		fetch_func=rss_tool.fetch
-	)
-	buffer_html_auctions.write(html_section)
+	with open("config/rss-feeds.json", "r") as file:
+		rss_feeds = json.load(file)
 
-	rss_tool = RssTool(urls=["https://robbreport.com/feed/"],
-					cache_duration=60*60*2,
-					cache_directory=collectbot.filepath_cache_directory,
-					cache_file="rss_robbreport.json")
-	
-	html_section = collectbotTemplate.generate_html_section(
-		title="Luxury and Rare Items",
-		fetch_func=rss_tool.fetch
-	)
-	buffer_html_auctions.write(html_section)
+	section_html: str = ""
+	for feed in rss_feeds:
+		section_html = collectbot.section_news(**feed)
+		buffer_html_auctions.write(section_html)
 
-	# rss_tool = RssTool(urls=["https://retronauts.com/feed/rss"],
-	# 				cache_duration=60*60*2,
-	# 				cache_directory=collectbot.filepath_cache_directory,
-	# 				cache_file="rss_retronauts.json")
-	# html_section = CollectBotTemplate.generate_html_section(
-	# 	title="Technology Collectibles",
-	# 	extensions=extensions,
-	# 	fetch_func=rss_tool.fetch
-	# )
-	# buffer_html_auctions.write(html_section)
-
-	rss_tool = RssTool(url="https://www.sportscollectorsdaily.com/category/sports-card-news/feed/",
-					cache_duration=60*60*1,
-					cache_directory=collectbot.filepath_cache_directory,
-					cache_file="rss_sports-collector-daily.json")
-	
-	html_section = collectbotTemplate.generate_html_section(
-		title="Sports Cards News",
-		fetch_func=rss_tool.fetch
-	)
-	buffer_html_auctions.write(html_section)
-
-	rss_tool = RssTool(url="https://comicbook.com/feed/rss/",
-					cache_duration=60*60*1,
-					cache_directory=collectbot.filepath_cache_directory,
-					cache_file="rss_comicbook-com.json")
-	
-	html_section = collectbotTemplate.generate_html_section(
-		title="Comic News",
-		fetch_func=rss_tool.fetch
-	)
-	buffer_html_auctions.write(html_section)
-
-	rss_tool = RssTool(urls=["https://puck.news/category/art/feed/",
-						  "https://www.antiquesandthearts.com/feed/"],
-							 cache_duration=60*30*3,
-							 cache_directory=collectbot.filepath_cache_directory,
-							 cache_file="rss_art-and-antiques.json")
-	html_section: str = collectbotTemplate.generate_html_section(
-		title="Art & Antiques",
-		fetch_func=rss_tool.fetch
-	)
-	buffer_html_auctions.write(html_section)
-
-	#The feed at `https://blog.ha.com/feed/` is disallowed by `robots.txt`, SMH.
-	# rss_tool = RssTool(urls=["https://blog.ha.com/feed/"],
-	# 						 cache_duration=60*30*3,
-	# 						 cache_directory=collectbot.filepath_cache_directory,
-	# 						 cache_file="rss_high-end-auctions.json")
-	# html_section: str = CollectBotTemplate.generate_html_section(
-	# 	title="High End Auctions",
-	# 	fetch_func=rss_tool.fetch
-	# )
-	# buffer_html_auctions.write(html_section)
-
-	rss_tool = RssTool(url="https://coinweek.com/feed/",
-					cache_duration=60*60*4,
-					cache_directory=collectbot.filepath_cache_directory,
-					cache_file="rss_coin-week.json")
-	
-	html_section = collectbotTemplate.generate_html_section(
-		title="Coin News",
-		fetch_func=rss_tool.fetch
-	)
-	buffer_html_auctions.write(html_section)
-
-	buffer_html_auctions.write("</div>\n")
-	buffer_html_auctions.write("</div>\n")
+	buffer_html_auctions.write("</div>\n") # Close the container div
+	buffer_html_auctions.write("</div>\n") # Close the newspaper div
 
 	buffer_html.write(CollectBotTemplate.make_news(buffer_html_auctions.getvalue()))
 
@@ -720,9 +680,10 @@ if __name__ == "__main__":
 		file.write(buffer_html.getvalue())
 		logger.info(f"File {filepath_output} created.")
 
-
 	#Backup the file
-	FilePathTools.create_directory_if_not_exists("backup")
-	FilePathTools.backup_file(filepath_output, "backup")
-
+	collectbot.backup_files()
 	logger.info(f"File {collectbot.filename_output} moved to backup.")
+
+	#Upload to S3
+	collectbot.upload_to_s3()
+	logger.info(f"Files uploaded to AWS S3.")
