@@ -9,6 +9,7 @@ log/
 # Config Files
 config.json
 epn-categories.json
+rss-feeds.json
 
 # Environment variables
 .env
