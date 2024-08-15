@@ -179,10 +179,11 @@ if __name__ == "__main__":
 
 		aws_helper: AwsS3Helper = AwsS3Helper(bucket_name='hobbyreport.net', region='us-east-1')
 		aws_helper.upload_images_with_tracking('httpd/i')
-
-		exit(0)
+		aws_helper.upload_file(file_path='httpd/index.html', object_name='index.html')
+		aws_helper.upload_file(file_path='httpd/style.css', object_name='style.css')
 		cf: AwsCFHelper = AwsCFHelper()
 		invalidation_id = cf.create_invalidation(['/index.html'])
+		invalidation_id = cf.create_invalidation(['/style.css'])
 		logger.info(f"Invalidation ID: {invalidation_id}")
 		exit(0)
 
@@ -190,9 +191,6 @@ if __name__ == "__main__":
 		s3.upload_file("test.txt")
 		s3.upload_directory("test_directory")
 		s3.configure_bucket_for_website()
-
-	_test()
-	exit(0)
 
 	if len(sys.argv) > 1 and (sys.argv[1] == "-t" or sys.argv[1] == "--test"):
 		_test()

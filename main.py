@@ -26,27 +26,60 @@ from collect.promptchat import PromptPersonalityAuctioneer
 from collect.rss_tool import RssTool
 from collect.aws_helper import AwsS3Helper
 
-class CollectBotTemplate:
-	_adorner: StringAdorner = StringAdorner()
-	_md: markdown.Markdown = markdown.Markdown(extensions=['attr_list'])
+class BaseTemplate:
+	def __init__(self, adorner):
+		self._adorner = adorner
 
-	def generate_html_section(title: str, extensions: list[str], fetch_func: Callable[[], Generator[dict[str, str], None, None]]):
+	def md_convert(self, text: str) -> str:
+		return markdown.markdown(text, extensions=['attr_list'])
+
+	def md_adornment(self, adornment: str) -> Callable[[Callable[..., str]], Callable[..., str]]:
+		return self._adorner.md_adornment(adornment)
+	
+	def html_wrapper_attributes(self, tag: str, attributes: dict) -> Callable:
+		def decorator(func: Callable[[str], str]) -> Callable[[str], str]:
+			def wrapper(s: str) -> str:
+				attrs = " ".join([f'{k}="{v}"' for k, v in attributes.items()])
+				return f'<{tag} {attrs}>{func(s)}</{tag}>'
+			return wrapper
+		return decorator
+	
+	def html_wrapper(self, tag: str, content: str, attributes: dict = None) -> str:
+		attrs = " ".join([f'{k}="{v}"' for k, v in (attributes or {}).items()])
+		return f'<{tag} {attrs}>{content}</{tag}>'
+
+	def wrap_with_tag(self, tag: str, attributes: dict = None):
+		def decorator(func: Callable[[str], str]) -> Callable[[str], str]:
+			def wrapper(s: str) -> str:
+				return self.html_wrapper(tag, func(s), attributes)
+			return wrapper
+		return decorator
+
+class CollectBotTemplate:
+	_adorner = StringAdorner()
+
+	def __init__(self):
+		self._md = markdown.Markdown(extensions=['attr_list'])
+
+	def html_wrapper(self, tag: str, content: str, attributes: dict = None) -> str:
+		attrs = " ".join([f'{k}="{v}"' for k, v in (attributes or {}).items()])
+		return f'<{tag} {attrs}>{content}</{tag}>'
+
+	def generate_html_section(self, title: str, fetch_func: Callable[[], Generator[dict[str, str], None, None]]) -> str:
 		buffer_html: StringIO = StringIO()
 		buffer_html.write("<div class=\"section\">\n")
 		buffer_html.write(CollectBotTemplate.make_h3(title))
 		buffer_html.write("\n<div class=\"content\">\n")
+		buffer_html.write("<ul>\n")
 
-		buffer_md: StringIO = StringIO()
 		for item in fetch_func():
-			buffer_md.write(" * [")
-			buffer_md.write(item['title'])
-			buffer_md.write("](")
-			buffer_md.write(item['link'])
-			buffer_md.write(")\n")
+			link: str = self.html_wrapper("a", item['title'], {"href": item['link']})
+			list_item: str = self.html_wrapper("li", link)
+			buffer_html.write(list_item)
 
-		buffer_html.write(CollectBotTemplate._md.convert(buffer_md.getvalue()))
-		buffer_html.write("</div>\n</div>\n")
-		buffer_md.close()
+		buffer_html.write("</ul>\n")
+		buffer_html.write("</div>\n")
+		buffer_html.write("</div>\n")
 
 		return buffer_html.getvalue()
 
@@ -99,6 +132,103 @@ class EBayAPITools:
 		self._api_cache.cache_file = str.join(".", [str.zfill(category_id, 6), "json"])	
 		search_results: list[dict[str, any]] = self._api_cache.cached_api_call(self._ebay_api.search_top_watched_items, category_id, max_results)
 		return search_results
+
+	def top_item_to_html(self, item_id: str, items: list[dict[str, any]], epn_category: str) -> str:
+		"""This is the most watched collectable item."""
+		"""
+			Items is a list of dictionaries with keys:
+			- 'itemId': str
+			- 'title': str
+			- 'globalId': str
+			- 'subtitle': str
+			- 'primaryCategory': dict
+			- 'galleryURL': str
+			- 'viewItemURL': str
+			- 'autoPay': bool
+			- 'postalCode': str
+			- 'location': str
+			- 'country': str
+			- 'shippingInfo': dict
+			- 'sellingStatus': dict
+			- 'listingInfo': dict
+			- 'returnsAccepted': bool
+			- 'condition': dict
+			- 'isMultiVariationListing': bool
+			- 'topRatedListing': bool
+		"""
+		item: dict[str, any] = None
+		for item in items:
+			if item['itemId'] == item_id:
+				break
+
+		if not item:
+			raise ValueError("Item not found in the list.")
+
+		"""Have the auctioneer generate a headline for the item."""
+		auctioneer: PromptPersonalityAuctioneer = PromptPersonalityAuctioneer()
+		auctioneer.add_headline(id=item_id, headline=item['title'])
+		headlines_iterator = auctioneer.get_headlines()
+
+		"""Get the first headline from the auctioneer.  There should only be one."""
+		title: str = ""
+		for headline in headlines_iterator:
+			title = headline['headline']
+			break
+
+		buffer: StringIO = StringIO()
+		item_url: str = item['viewItemURL']
+		epn_url: str = eBayAPI.generate_epn_link(item_url, epn_category)
+		end_time_string: str = item['listingInfo']['endTime']
+		end_datetime: datetime = datetime.strptime(end_time_string, "%Y-%m-%dT%H:%M:%S.%fZ")
+		now: datetime = datetime.now(tz=end_datetime.tzinfo)
+
+		image_url = item['galleryURL']
+		image_url_large: str = ""
+
+		if image_url.endswith("s-l140.jpg"):
+			image_url = image_url.replace("s-l140.jpg", "s-l400.jpg")
+
+		try:
+			image_cache = ImageCache(url=image_url, identifier=item_id, cache_dir=self._image_dir)
+		except Exception as e:
+			image_cache = ImageCache(url=item['galleryURL'], identifier=item_id, cache_dir=self._image_dir)
+			print(f"Error: {e}")
+
+		try:
+			if image_url.endswith("s-l400.jpg"):
+				image_url_large = image_url.replace("s-l400.jpg", "s-l1600.jpg")
+			image_cache_large = ImageCache(url=image_url_large, identifier=item_id + "_large", cache_dir=self._image_dir)
+			local_path: str = image_cache_large.get_image_path()
+			if image_cache_large._downloaded_image:
+				aws_helper: AwsS3Helper = AwsS3Helper(bucket_name='hobbyreport.net', region='us-east-1')
+				aws_helper.upload_images_with_tracking('httpd/i')
+
+		except Exception as e:
+			print(f"Error: {e}")
+
+		local_path = image_cache.get_image_path()
+		path_obj = Path(local_path)
+		filename: str = path_obj.name
+		new_path: str = str(Path('i') / filename)
+
+
+
+		buffer.write("![image](")
+		buffer.write(new_path)
+		buffer.write("){: .th_img }\n\n")
+
+		buffer.write("**[")
+		buffer.write(title)
+		buffer.write("](")
+		buffer.write(epn_url)
+
+		if end_datetime - now < timedelta(days=1):
+			buffer.write("){: .th_ending }**\n\n")
+		else:
+			buffer.write("){: .th_ }**\n\n")
+
+		return buffer.getvalue()
+
 
 	def top_item_to_markdown(self, item_id: str, items: list[dict[str, any]], epn_category: str) -> str:
 		"""This is the most watched collectable item."""
@@ -346,7 +476,11 @@ class CollectBot:
 	
 	def epn_category_id(self, category: str) -> str:
 		"""Returns the eBay Partner Network category ID for the given category."""
-		return self._epn_categories[category]
+		r: str = ""
+		if category in self._epn_categories:
+			r = self._epn_categories[category]
+		else:
+			r = self.epn_category_default
 
 '''
 	Main function
@@ -386,6 +520,8 @@ if __name__ == "__main__":
 	items_antiques: list[dict[str, any]] = ebay_tools.search_top_items_from_catagory("20081", ttl=refresh_time, max_results=6)
 	items_art: list[dict[str, any]] = ebay_tools.search_top_items_from_catagory("550", ttl=refresh_time, max_results=6)
 	items_toys_hobbies: list[dict[str, any]] = ebay_tools.search_top_items_from_catagory("220", ttl=refresh_time, max_results=6)
+	items_luxury_watches: list[dict[str, any]] = ebay_tools.search_top_items_from_catagory("31387", ttl=refresh_time, max_results=10)
+	items_cars_and_trucks: list[dict[str, any]] = ebay_tools.search_top_items_from_catagory("6000", ttl=refresh_time, max_results=6)
 
 	all_items: list[dict[str, any]] = items_trading_cards.copy()
 	all_items.extend(items_non_sports)
@@ -399,6 +535,8 @@ if __name__ == "__main__":
 	all_items.extend(items_antiques)
 	all_items.extend(items_art)
 	all_items.extend(items_toys_hobbies)
+	all_items.extend(items_luxury_watches)
+	all_items.extend(items_cars_and_trucks)
 
 	# Write the HTML header
 	with open('templates/header.html', 'r', encoding="utf-8") as input_file:
@@ -427,6 +565,7 @@ if __name__ == "__main__":
 			{"header": "Trading Cards", "items": items_trading_cards, "exclude": [top_item_id], "epn_category": collectbot.epn_category_id("trading_cards")},
 			{"header": "Non Sports", "items": items_non_sports, "exclude": [top_item_id], "epn_category": collectbot.epn_category_id("non_sports")},
 			{"header": "Comics", "items": items_comics, "exclude": [top_item_id], "epn_category": collectbot.epn_category_id("comics")},
+			{"header": "Luxury Watches", "items": items_luxury_watches, "exclude": [top_item_id], "epn_category": collectbot.epn_category_id("luxury_watches")},
 			{"header": "Rocks and Fossils", "items": items_fossles, "exclude": [top_item_id], "epn_category": collectbot.epn_category_id("rocks_and_fossils")},
 			{"header": "Autographs", "items": items_autographs, "exclude": [top_item_id], "epn_category": collectbot.epn_category_id("autographs")},
 			{"header": "Coins", "items": items_coins, "exclude": [top_item_id], "epn_category": collectbot.epn_category_id("coins")},
@@ -435,7 +574,8 @@ if __name__ == "__main__":
 			{"header": "Art", "items": items_art, "exclude": [top_item_id], "epn_category": collectbot.epn_category_id("art")},
 			{"header": "Toys and Hobbies", "items": items_toys_hobbies, "exclude": [top_item_id], "epn_category": collectbot.epn_category_id("toys_and_hobbies")},
 			{"header": "Military Relics", "items": items_military_relics, "exclude": [top_item_id], "epn_category": collectbot.epn_category_id("military_relics")},
-			{"header": "Bobbleheads", "items": items_bobbleheads, "exclude": [top_item_id], "epn_category": collectbot.epn_category_id("bobbleheads")}
+			{"header": "Bobbleheads", "items": items_bobbleheads, "exclude": [top_item_id], "epn_category": collectbot.epn_category_id("bobbleheads")},
+			{"header": "Cars and Trucks", "items": items_cars_and_trucks, "exclude": [top_item_id], "epn_category": collectbot.epn_category_id("cars_and_trucks")}
 		]
 
 	buffer_html_sections: StringIO = StringIO()
@@ -443,7 +583,7 @@ if __name__ == "__main__":
 		buffer_html_section: StringIO = StringIO()
 		buffer_html_section.write(CollectBotTemplate.make_h3(section['header']))
 		md: str = ebay_tools.search_results_to_markdown(items=section['items'], epn_category=section['epn_category'], exclude=section['exclude'])
-		md = CollectBotTemplate._md.convert(md)
+		md = collectbotTemplate._md.convert(md)
 		md = CollectBotTemplate.make_content(md)
 		buffer_html_section.write(md)
 
@@ -469,6 +609,8 @@ if __name__ == "__main__":
 	items_antiques.clear()
 	items_art.clear()
 	items_toys_hobbies.clear()
+	items_luxury_watches.clear()
+	items_cars_and_trucks.clear()
 
 	section_header = CollectBotTemplate.make_h2("News")
 	section_header = CollectBotTemplate.make_section_header_news(section_header)
@@ -480,9 +622,8 @@ if __name__ == "__main__":
 							 cache_duration=60*30*3,
 							 cache_directory=collectbot.filepath_cache_directory,
 							 cache_file="rss_becket.json")
-	html_section: str = CollectBotTemplate.generate_html_section(
+	html_section: str = collectbotTemplate.generate_html_section(
 		title="Releases",
-		extensions=extensions,
 		fetch_func=rss_tool.fetch
 	)
 	buffer_html_auctions.write(html_section)
@@ -492,9 +633,8 @@ if __name__ == "__main__":
 					cache_directory=collectbot.filepath_cache_directory,
 					cache_file="rss_robbreport.json")
 	
-	html_section = CollectBotTemplate.generate_html_section(
+	html_section = collectbotTemplate.generate_html_section(
 		title="Luxury and Rare Items",
-		extensions=extensions,
 		fetch_func=rss_tool.fetch
 	)
 	buffer_html_auctions.write(html_section)
@@ -508,16 +648,15 @@ if __name__ == "__main__":
 	# 	extensions=extensions,
 	# 	fetch_func=rss_tool.fetch
 	# )
-	buffer_html_auctions.write(html_section)
+	# buffer_html_auctions.write(html_section)
 
 	rss_tool = RssTool(url="https://www.sportscollectorsdaily.com/category/sports-card-news/feed/",
 					cache_duration=60*60*1,
 					cache_directory=collectbot.filepath_cache_directory,
 					cache_file="rss_sports-collector-daily.json")
 	
-	html_section = CollectBotTemplate.generate_html_section(
+	html_section = collectbotTemplate.generate_html_section(
 		title="Sports Cards News",
-		extensions=extensions,
 		fetch_func=rss_tool.fetch
 	)
 	buffer_html_auctions.write(html_section)
@@ -527,9 +666,8 @@ if __name__ == "__main__":
 					cache_directory=collectbot.filepath_cache_directory,
 					cache_file="rss_comicbook-com.json")
 	
-	html_section = CollectBotTemplate.generate_html_section(
+	html_section = collectbotTemplate.generate_html_section(
 		title="Comic News",
-		extensions=extensions,
 		fetch_func=rss_tool.fetch
 	)
 	buffer_html_auctions.write(html_section)
@@ -539,9 +677,8 @@ if __name__ == "__main__":
 							 cache_duration=60*30*3,
 							 cache_directory=collectbot.filepath_cache_directory,
 							 cache_file="rss_art-and-antiques.json")
-	html_section: str = CollectBotTemplate.generate_html_section(
+	html_section: str = collectbotTemplate.generate_html_section(
 		title="Art & Antiques",
-		extensions=extensions,
 		fetch_func=rss_tool.fetch
 	)
 	buffer_html_auctions.write(html_section)
@@ -553,7 +690,6 @@ if __name__ == "__main__":
 	# 						 cache_file="rss_high-end-auctions.json")
 	# html_section: str = CollectBotTemplate.generate_html_section(
 	# 	title="High End Auctions",
-	# 	extensions=extensions,
 	# 	fetch_func=rss_tool.fetch
 	# )
 	# buffer_html_auctions.write(html_section)
@@ -563,9 +699,8 @@ if __name__ == "__main__":
 					cache_directory=collectbot.filepath_cache_directory,
 					cache_file="rss_coin-week.json")
 	
-	html_section = CollectBotTemplate.generate_html_section(
+	html_section = collectbotTemplate.generate_html_section(
 		title="Coin News",
-		extensions=extensions,
 		fetch_func=rss_tool.fetch
 	)
 	buffer_html_auctions.write(html_section)
