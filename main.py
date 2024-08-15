@@ -12,7 +12,7 @@ from dotenv import load_dotenv
 from os import path
 from pathlib import Path
 
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from io import StringIO
 from typing import Generator, Callable
 
@@ -61,6 +61,23 @@ class CollectBotTemplate:
 
 	def __init__(self):
 		self._md = markdown.Markdown(extensions=['attr_list'])
+
+	def create_sitemap(self, urls: list[str]) -> str:
+		buffer: StringIO = StringIO()
+		buffer.write("<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n")
+		buffer.write("<urlset xmlns=\"http://www.sitemaps.org/schemas/sitemap/0.9\">\n")
+		for url in urls:
+			buffer.write("\t<url>\n")
+			buffer.write(f"\t\t<loc>{url}</loc>\n")
+			buffer.write("\t\t<lastmod>")
+			buffer.write(datetime.now().astimezone(timezone.utc).isoformat(timespec='minutes'))
+			buffer.write("</lastmod>\n")
+			buffer.write("\t\t<changefreq>hourly</changefreq>\n")
+			buffer.write("\t\t<priority>1.0</priority>\n")
+			buffer.write("\t</url>\n")
+
+		buffer.write("</urlset>\n")
+		return buffer.getvalue()
 
 	def html_wrapper(tag: str, content: str, attributes: dict = None) -> str:
 		attrs = " ".join([f'{k}="{v}"' for k, v in (attributes or {}).items()])
@@ -505,15 +522,23 @@ class CollectBot:
 		aws_helper: AwsS3Helper = AwsS3Helper(bucket_name='hobbyreport.net', region='us-east-1')
 		aws_helper.upload_images_with_tracking('httpd/i')
 		aws_helper.upload_file(file_path='httpd/index.html', object_name='index.html')
-		#aws_helper.upload_file(file_path='httpd/style.css', object_name='style.css')
+		aws_helper.upload_file(file_path='httpd/sitemap.xml', object_name='sitemap.xml')
+		aws_helper.upload_file(file_path='httpd/style.css', object_name='style.css')
+		aws_helper.upload_file(file_path='httpd/favicon.ico', object_name='favicon.ico')
+		aws_helper.upload_file(file_path='httpd/robots.txt', object_name='robots.txt')
 
 		#Create an invalidation for the CloudFront distribution
 		cf: AwsCFHelper = AwsCFHelper()
-		invalidation_id = cf.create_invalidation(['/index.html'])
-		logger.info(f"Invalidation ID: {invalidation_id} - /index.html")
 
 		invalidation_id = cf.create_invalidation(['/'])
 		logger.info(f"Invalidation ID: {invalidation_id} - /")
+
+		invalidation_id = cf.create_invalidation(['/index.html'])
+		logger.info(f"Invalidation ID: {invalidation_id} - /index.html")
+
+		invalidation_id = cf.create_invalidation(['/sitemap.xml'])
+		logger.info(f"Invalidation ID: {invalidation_id} - /sitemap.xml")
+
 
 		#invalidation_id = cf.create_invalidation(['/style.css'])
 		#logger.info(f"Invalidation ID: {invalidation_id}")
@@ -678,6 +703,11 @@ if __name__ == "__main__":
 	filepath_output: str = path.join(collectbot.filepath_output_directory, collectbot.filename_output)
 	with open(filepath_output, 'w', encoding="utf-8") as file:
 		file.write(buffer_html.getvalue())
+		logger.info(f"File {filepath_output} created.")
+
+	filepath_output:str = path.join(collectbot.filepath_output_directory, "sitemap.xml")
+	with open(filepath_output, 'w', encoding="utf-8") as file:
+		file.write(collectbotTemplate.create_sitemap(["https://hobbyreport.net"]))
 		logger.info(f"File {filepath_output} created.")
 
 	#Backup the file
