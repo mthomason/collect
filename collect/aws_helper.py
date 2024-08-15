@@ -7,6 +7,7 @@ import time
 import json
 
 import boto3
+import mimetypes
 
 from dotenv import load_dotenv
 from pathlib import Path
@@ -64,8 +65,12 @@ class AwsS3Helper:
 		if object_name is None:
 			object_name = Path(file_path).name
 
+		content_type, _ = mimetypes.guess_type(file_path)
+		content_type = content_type or "application/octet-stream"
+		extraArgs = {'ContentType': content_type}
+
 		try:
-			self.s3_client.upload_file(file_path, self._bucket_name, object_name)
+			self.s3_client.upload_file(file_path, self._bucket_name, object_name, ExtraArgs=extraArgs)
 			logger.info(f"File {file_path} uploaded to {self._bucket_name}/{object_name}")
 		except FileNotFoundError:
 			logger.error(f"The file {file_path} was not found.")
