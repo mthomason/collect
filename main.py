@@ -481,6 +481,7 @@ class CollectBot:
 			r = self._epn_categories[category]
 		else:
 			r = self.epn_category_default
+		return r
 
 '''
 	Main function
