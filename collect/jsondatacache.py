@@ -11,7 +11,7 @@ class JSONDataCache:
 	_DATA_KEY_TITLE: Final[str] = "headline"
 	_DATA_KEY_TIMESTAMP: Final[str] = "timestamp"
 
-	def __init__(self, file_path: str, max_record_age: int = 14):
+	def __init__(self, file_path: str, max_record_age: int = 30):
 		self.file_path: str = file_path
 		self.max_record_age = max_record_age
 		self._data = self._load_json_data()

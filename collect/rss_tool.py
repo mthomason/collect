@@ -3,18 +3,22 @@
 
 import json
 import os
+
 import xml.etree.ElementTree as ElementTree
 
 from os import path
 from collect.fetch_bot import FetchBot
 from datetime import datetime, timedelta
 from requests.models import Response
-from typing import Final, Generator
+from typing import Generator
 from xml.etree.ElementTree import Element
 
 class RssTool:
-	def __init__(self, urls: list[str] | None = None, url: str | None = None, cache_duration: int = 28800,
-			  max_results: int = 10, cache_directory: str ="cache", cache_file: str = "rss_cache.json"):
+	def __init__(self, urls: list[str] | None = None, url: str | None = None,
+				 cache_duration: int = 28800,
+				 max_results: int = 10, cache_directory: str ="cache",
+				 cache_file: str = "rss_cache.json",
+				 max_cache_size: int = 20):
 
 		if not url and not urls:
 			raise ValueError("Either url or urls must be provided.")
@@ -32,6 +36,7 @@ class RssTool:
 		self.cache_duration: timedelta = timedelta(seconds=cache_duration)
 		self._last_fetch_time: datetime | None = None
 		self._cache: list[dict[str, str]] = []
+		self._max_cache_size: int = max_cache_size
 		self._load_cache_from_file()
 	
 	def fetch(self) -> Generator[dict[str, str], None, None]:
@@ -53,7 +58,7 @@ class RssTool:
 	def _update_cache(self) -> list[dict[str, str]]:
 		"""Fetch data from the URL and update the cache."""
 
-		new_cache: list = []
+		new_items: list[dict[str, str]] = []
 
 		for url in self._urls:
 			request_bot: FetchBot = FetchBot(url)
@@ -61,23 +66,27 @@ class RssTool:
 				raise ValueError("The URL is disallowed by robots.txt.")
 
 			response: Response = request_bot.fetch()
-				
+
 			if response.status_code != 200:
 				raise ValueError(f"Failed to fetch data from {url}.")
 
 			root: Element = ElementTree.fromstring(response.content)
 
-			i: int = 0
-			for item in root.findall(".//item"):
+			for i, item in enumerate(root.findall(".//item")):
 				if i >= self._max_results:
 					break
 				title: str = item.find("title").text
 				link: str = item.find("link").text
-				new_cache.append({"title": title, "link": link})
-				i += 1
+				new_items.append({
+					"title": title,
+					"link": link,
+					"date-added": datetime.now().isoformat()
+				})
+
+		combined_cache = new_items + [item for item in self._cache if item["link"] not in {i["link"] for i in new_items}]
 
 		self._last_fetch_time = datetime.now()
-		return new_cache
+		return combined_cache[:self._max_cache_size]
 
 	def _load_cache_from_file(self):
 		"""Load cache and last fetch time from a file."""

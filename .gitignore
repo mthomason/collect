@@ -5,12 +5,7 @@ cache/
 backup/
 httpd/
 log/
-
-# Config Files
-config.json
-epn-categories.json
-rss-feeds.json
-auctions-ebay.json
+config/
 
 # Environment variables
 .env

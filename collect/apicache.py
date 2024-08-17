@@ -8,7 +8,7 @@ import time
 from typing import Callable
 
 class APICache:
-	def __init__(self, cache_dir: str = "cache", cache_file: str = "api_cache.json", cache_ttl: int = 8 * 60 * 60):
+	def __init__(self, cache_dir: str = "cache", cache_file: str = "api_cache.json", cache_ttl: int = 5 * 60 * 60):
 		self.cache_dir = cache_dir
 		self.cache_file = cache_file
 		self.cache_ttl = cache_ttl

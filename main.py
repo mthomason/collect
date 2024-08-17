@@ -26,35 +26,7 @@ from collect.promptchat import PromptPersonalityAuctioneer
 from collect.rss_tool import RssTool
 from collect.aws_helper import AwsS3Helper
 from collect.aws_helper import AwsCFHelper
-
-class BaseTemplate:
-	def __init__(self, adorner):
-		self._adorner = adorner
-
-	def md_convert(self, text: str) -> str:
-		return markdown.markdown(text, extensions=['attr_list'])
-
-	def md_adornment(self, adornment: str) -> Callable[[Callable[..., str]], Callable[..., str]]:
-		return self._adorner.md_adornment(adornment)
-	
-	def html_wrapper_attributes(self, tag: str, attributes: dict) -> Callable:
-		def decorator(func: Callable[[str], str]) -> Callable[[str], str]:
-			def wrapper(s: str) -> str:
-				attrs = " ".join([f'{k}="{v}"' for k, v in attributes.items()])
-				return f'<{tag} {attrs}>{func(s)}</{tag}>'
-			return wrapper
-		return decorator
-	
-	def html_wrapper(tag: str, content: str, attributes: dict = None) -> str:
-		attrs = " ".join([f'{k}="{v}"' for k, v in (attributes or {}).items()])
-		return f'<{tag} {attrs}>{content}</{tag}>'
-
-	def wrap_with_tag(self, tag: str, attributes: dict = None):
-		def decorator(func: Callable[[str], str]) -> Callable[[str], str]:
-			def wrapper(s: str) -> str:
-				return self.html_wrapper(tag, func(s), attributes)
-			return wrapper
-		return decorator
+from collect.html_template_processor import HtmlTemplateProcessor
 
 class CollectBotTemplate:
 	_adorner = StringAdorner()
@@ -78,7 +50,7 @@ class CollectBotTemplate:
 
 		buffer.write("</urlset>\n")
 		return buffer.getvalue()
-
+	
 	def html_wrapper(tag: str, content: str, attributes: dict = None) -> str:
 		assert tag, "tag is required."
 		assert content, "content is required."
@@ -152,6 +124,9 @@ class EBayAPITools:
 		self._image_dir: str = image_dir
 
 	def search_top_items_from_catagory(self, category_id: str, ttl: int, max_results: int) -> list[dict[str, any]]:
+		"""Searches for the top watched items in the category."""
+		if not category_id or len(category_id) > 6:
+			raise ValueError("category_id is required and must be less than six characters.")
 		self._api_cache.cache_file = str.join(".", [str.zfill(category_id, 6), "json"])	
 		search_results: list[dict[str, any]] = self._api_cache.cached_api_call(self._ebay_api.search_top_watched_items, category_id, max_results)
 		return search_results
@@ -462,6 +437,31 @@ class CollectBot:
 		with open("config/epn-categories.json", "r") as file:
 			self._epn_categories = json.load(file)
 
+	def update_edition(self):
+		"""Updates the edition of the CollectBot."""
+		self._config["edition"] = self._config["edition"] + 1
+		self._config["last-modified"] = datetime.now(timezone.utc).isoformat()
+		with open("config/config.json", "w") as file:
+			json.dump(self._config, file, indent="\t")
+
+	@property
+	def edition(self) -> int:
+		"""Returns the edition of the CollectBot."""
+		return self._config['edition']
+	
+	@property
+	def last_modified_text(self) -> str:
+		"""Returns the last modified date of the CollectBot as a string."""
+		utc_time = datetime.fromisoformat(self._config['last-modified'])
+		local_offset = datetime.now().astimezone().utcoffset()
+		local_time = utc_time + local_offset
+		return local_time.strftime("%Y-%m-%d %I:%M %p")
+
+	@property
+	def last_modified(self) -> datetime:
+		"""Returns the last modified date of the CollectBot."""
+		return datetime.fromisoformat(self._config['last-modified'])
+
 	@property
 	def filename_output(self) -> str:
 		"""Returns the output file name."""
@@ -506,8 +506,11 @@ class CollectBot:
 			r = self.epn_category_default
 		return r
 
-	def section_news(self, title: str, urls:list[dict[str, any]], interval: int, filename: str) -> str:
+	def section_news(self, title: str, urls:list[dict[str, any]],
+					 interval: int,
+					 filename: str, max_results: int = 10) -> str:
 		rss_tool: RssTool = RssTool(urls=urls, cache_duration=interval,
+									max_results=max_results,
 									cache_directory=self.filepath_cache_directory,
 									cache_file=filename)
 		html_section: str = CollectBotTemplate.generate_html_section(
@@ -543,62 +546,62 @@ class CollectBot:
 		invalidation_id = cf.create_invalidation(['/sitemap.xml'])
 		logger.info(f"Invalidation ID: {invalidation_id} - /sitemap.xml")
 
-
-		#invalidation_id = cf.create_invalidation(['/style.css'])
-		#logger.info(f"Invalidation ID: {invalidation_id}")
+		invalidation_id = cf.create_invalidation(['/style.css'])
+		logger.info(f"Invalidation ID: {invalidation_id}")
 
 '''
 	Main function
 '''
 if __name__ == "__main__":
 
+	current_time: datetime = datetime.now(timezone.utc)
+
 	# Setup logging
 	setup_logging("log/collectbot.log")
 	logger = logging.getLogger(__name__)
 	logger.info('Application started')
 
-	# Initialize the CollectBot and CollectBotTemplate
 	collectbot: CollectBot = CollectBot()
 	collectbotTemplate: CollectBotTemplate = CollectBotTemplate()
 
-	# Program Initalization
 	if not load_dotenv():
 		raise ValueError("Failed to load the .env file.")
 
-	# Set Inital Values
 	app_id: uuid = uuid.UUID("27DC793C-9C69-4565-B611-9318933CA561")
 	app_name: str = "Hobby Report"
-
 	ebay_refresh_time: int = 4 * 60 * 60
 
+	extensions: list[str] = ['attr_list']
 	buffer_html: StringIO = StringIO(initial_value="")
+
 	# Write the HTML header, nameplate, and lead headline
-	with open('templates/header.html', 'r', encoding="utf-8") as input_file:
-		buffer_html.write(input_file.read())
-		
+	processor: HtmlTemplateProcessor = HtmlTemplateProcessor("templates/header.html")
+	processor.replace_from_file("style_inline", "templates/style_inline.css")
+	buffer_html.write(processor.get_content())
 	buffer_html.write("\t<div id=\"newspaper\">\n")
 
+	# Write Site Nameplate
 	nameplate: str = CollectBotTemplate.make_h1(app_name)
 	nameplate = CollectBotTemplate.make_nameplate(nameplate)
-
 	buffer_html.write(nameplate)
 
-	extensions: list[str] = ['attr_list']
 
 	# Initialize the eBay API tools
 	ebay_tools: EBayAPITools = EBayAPITools(cache_dir=collectbot.filepath_cache_directory, image_dir=collectbot.filepath_image_directory)
 
-	buffer_html_auctions: StringIO = StringIO()
-
 	with open("config/auctions-ebay.json", "r") as file:
 		# Load the auctions
 		auctions_ebay = json.load(file)
+	
+		buffer_html_auctions: StringIO = StringIO()
 
 		# Generate the HTML for the lead headline
 		lead_headline: str = ""
 		all_items: list[dict[str, any]] = []
 		for auction in auctions_ebay:
-			items: list[dict[str, any]] = ebay_tools.search_top_items_from_catagory(auction['id'], ttl=ebay_refresh_time, max_results=auction['count'])
+			items: list[dict[str, any]] = ebay_tools.search_top_items_from_catagory(auction['id'],
+																		   ttl=ebay_refresh_time,
+																		   max_results=auction['count'])
 			auction['items'] = items
 			all_items.extend(items)
 
@@ -638,33 +641,38 @@ if __name__ == "__main__":
 		buffer_html.write(CollectBotTemplate.make_auctions(buffer_html_auctions.getvalue()))
 		buffer_html.write("\n")
 
+		buffer_html_auctions.seek(0)
+		buffer_html_auctions.truncate(0)
 
-
-	buffer_html_auctions.seek(0)
-	buffer_html_auctions.truncate(0)
-
+	buffer_html_news: StringIO = StringIO()
 	section_header = CollectBotTemplate.make_h2("News")
 	section_header = CollectBotTemplate.make_section_header_news(section_header)
-	buffer_html_auctions.write(section_header)
-
-	buffer_html_auctions.write("<div class=\"container\">\n")
+	buffer_html_news.write(section_header)
+	buffer_html_news.write("<div class=\"container\">\n")
 
 	with open("config/rss-feeds.json", "r") as file:
 		rss_feeds = json.load(file)
 
-	section_html: str = ""
-	for feed in rss_feeds:
-		section_html = collectbot.section_news(**feed)
-		buffer_html_auctions.write(section_html)
+		section_html: str = ""
+		for feed in rss_feeds:
+			section_html = collectbot.section_news(**feed)
+			buffer_html_news.write(section_html)
 
-	buffer_html_auctions.write("</div>\n") # Close the container div
-	buffer_html_auctions.write("</div>\n") # Close the newspaper div
+	buffer_html_news.write("</div>\n") # Close the container div
 
-	buffer_html.write(CollectBotTemplate.make_news(buffer_html_auctions.getvalue()))
+	buffer_html_news.write("</div>\n") # Close the newspaper div
+
+	buffer_html.write(CollectBotTemplate.make_news(buffer_html_news.getvalue()))
 
 	with open('templates/footer.html', 'r', encoding="utf-8") as file:
 		buffer_html.write("\n")
 		buffer_html.write(file.read())
+
+
+	# Write links to other pages
+
+	# Write site information
+
 
 	#Write to file named index.html
 	filepath_output: str = path.join(collectbot.filepath_output_directory, collectbot.filename_output)
@@ -681,6 +689,16 @@ if __name__ == "__main__":
 	collectbot.backup_files()
 	logger.info(f"File {collectbot.filename_output} moved to backup.")
 
+	#Minify the CSS
+	with open("templates/style.css", "r") as file:
+		style_content: str = HtmlTemplateProcessor.minify_css(file.read())
+		with open("httpd/style.css", "w") as file:
+			file.write(style_content)
+			logger.info(f"File httpd/style.css created.")
+
+	collectbot.update_edition()
+	logger.info(f"Edition updated to {collectbot.edition}.")
+
 	#Upload to S3
-	collectbot.upload_to_s3()
-	logger.info(f"Files uploaded to AWS S3.")
+	# collectbot.upload_to_s3()
+	# logger.info(f"Files uploaded to AWS S3.")
