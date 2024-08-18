@@ -6,6 +6,8 @@ from io import StringIO
 import json
 import logging
 import markdown
+import pprint
+
 from os import path
 
 from collect.aws_helper import AwsCFHelper, AwsS3Helper
@@ -14,7 +16,6 @@ from collect.ebayapi import EBayAuctions
 from collect.filepathtools import FilePathTools
 from collect.html_template_processor import HtmlTemplateProcessor
 from collect.rss_tool import RssTool
-
 
 logger = logging.getLogger(__name__)
 
@@ -114,12 +115,12 @@ class CollectBot:
 		else:
 			r = self.epn_category_default
 		return r
-	
+
 	def write_html_to_file(self, ebay_auctions: EBayAuctions):
 		"""Writes the HTML to the output file."""
-		html: str = self.create_html(ebay_auctions)
+		s: str = self.create_html(ebay_auctions)
 		with open(self.filepath_output_html, 'w', encoding="utf-8") as file:
-			file.write(html)
+			file.write(s)
 			logger.info(f"File {self.filepath_output_html} created.")
 
 	def create_html(self, ebay_auctions: EBayAuctions) -> str:

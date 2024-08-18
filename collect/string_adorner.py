@@ -14,7 +14,11 @@ class StringAdorner:
 				_buffer.write(adornment)
 				_buffer.write(original_output)
 				_buffer.write(adornment)
-				return _buffer.getvalue()
+				s: str = _buffer.getvalue()
+				_buffer.seek(0)
+				_buffer.truncate(0)
+				_buffer.close()
+				return s
 			return wrapper
 		return decorator
 
@@ -30,7 +34,11 @@ class StringAdorner:
 				_buffer.write("</")
 				_buffer.write(tag)
 				_buffer.write(">")
-				return _buffer.getvalue()
+				s: str = _buffer.getvalue()
+				_buffer.seek(0)
+				_buffer.truncate(0)
+				_buffer.close()
+				return s
 			return wrapper
 		return decorator
 
@@ -43,19 +51,24 @@ class StringAdorner:
 				_buffer.truncate(0)
 				_buffer.write("<")
 				_buffer.write(tag)
-				for key, value in attributes.items():
-					_buffer.write(" ")
-					_buffer.write(key)
-					_buffer.write("=\"")
-					_buffer.write(value)
-					_buffer.write("\"")
+				if len(attributes) > 0:
+					for key, value in attributes.items():
+						_buffer.write(" ")
+						_buffer.write(key)
+						_buffer.write("=\"")
+						_buffer.write(value)
+						_buffer.write("\"")
 				
 				_buffer.write(">")
 				_buffer.write(original_output)
 				_buffer.write("</")
 				_buffer.write(tag)
 				_buffer.write(">")
-				return _buffer.getvalue()
+				s: str = _buffer.getvalue()
+				_buffer.seek(0)
+				_buffer.truncate(0)
+				_buffer.close()
+				return s
 			return wrapper
 		return decorator
 

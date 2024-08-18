@@ -18,7 +18,7 @@ class CollectBotTemplate:
 
 	def __init__(self):
 		pass
-	
+
 	def create_sitemap(self, urls: list[str]) -> str:
 		buffer: StringIO = StringIO()
 		buffer.write("<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n")
@@ -46,22 +46,24 @@ class CollectBotTemplate:
 
 	def generate_html_section(title: str, fetch_func: Callable[[], Generator[dict[str, str], None, None]]) -> str:
 		buffer_html: StringIO = StringIO()
-		buffer_html.write("<div class=\"section\">\n")
-		buffer_html.write(CollectBotTemplate.make_h3(title))
-		buffer_html.write("\n<div class=\"content\">\n")
-		buffer_html.write("<ul>\n")
+		buffer_html.write(CollectBotTemplate.make_item_header(title))
 
+		buffer_li: StringIO = StringIO()
 		for item in fetch_func():
 			link: str = CollectBotTemplate.html_wrapper("a", item['title'], {"href": item['link']})
 			list_item: str = CollectBotTemplate.html_wrapper("li", link)
-			buffer_html.write(list_item)
-			buffer_html.write("\n")
+			buffer_li.write(list_item)
+			buffer_li.write("\n")
 
-		buffer_html.write("</ul>\n")
-		buffer_html.write("</div>\n")
-		buffer_html.write("</div>\n")
-
-		return buffer_html.getvalue()
+		buffer_html.write(CollectBotTemplate.make_content_ul(buffer_li.getvalue()))
+		result: str = CollectBotTemplate.make_section(buffer_html.getvalue())
+		buffer_li.seek(0)
+		buffer_li.truncate(0)
+		buffer_li.close()
+		buffer_html.seek(0)
+		buffer_html.truncate(0)
+		buffer_html.close()
+		return result
 
 	def auctions_to_html(ebay: EBayAuctions, exclude: list[str]) -> str:
 		bufauct: StringIO = StringIO()
@@ -90,6 +92,7 @@ class CollectBotTemplate:
 	def create_html_header() -> str:
 		processor: HtmlTemplateProcessor = HtmlTemplateProcessor("templates/header.html")
 		processor.replace_from_file("style_inline", "templates/style_inline.css")
+		processor.replace_from_file("header_js", "templates/header_js.html")
 		return processor.get_content()
 	
 	def create_html_footer() -> str:
@@ -126,6 +129,10 @@ class CollectBotTemplate:
 	def make_section(s: str) -> str: return s
 
 	@_adorner.html_wrapper_attributes("div", {"class": "content"})
+	@_adorner.html_wrapper_attributes("ul", {})
+	def make_content_ul(s: str) -> str: return s
+
+	@_adorner.html_wrapper_attributes("div", {"class": "content"})
 	def make_content(s: str) -> str: return s
 
 	@_adorner.html_wrapper_attributes("div", {"class": "section-header"})
@@ -134,8 +141,4 @@ class CollectBotTemplate:
 
 	@_adorner.html_wrapper_attributes("div", {"class": "item-header"})
 	@_adorner.html_wrapper_attributes("h3", {"class": "h3"})
-	def make_item_header(s: str) -> str:
-		return s
-
-	@_adorner.html_wrapper_attributes("h3", {"class": "h3"})
-	def make_h3(s: str) -> str: return s
+	def make_item_header(s: str) -> str: return s

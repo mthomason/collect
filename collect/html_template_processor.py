@@ -3,12 +3,22 @@
 # -*- coding: utf-8 -*-
 
 import re
+import logging
+
 from io import StringIO
+
+logger = logging.getLogger(__name__)
 
 class HtmlTemplateProcessor:
 	def __init__(self, template_path: str):
 		self._template_path: str = template_path
 		self._buffer: StringIO = StringIO(self._load_template())
+
+	def __del__(self):
+		self._template_path = None
+		self._buffer.seek(0)
+		self._buffer.truncate(0)
+		self._buffer.close()
 
 	def _load_template(self) -> str:
 		"""Load the HTML template into a buffer."""
@@ -27,13 +37,19 @@ class HtmlTemplateProcessor:
 		placeholder_pattern = '{{' + placeholder + '}}'
 		
 		# Read and replace
+		self._buffer.seek(0)
 		for line in self._buffer:
 			if placeholder_pattern in line:
 				line = line.replace(placeholder_pattern, replacement_content)
 			new_buffer.write(line)
 		
 		# Reset the buffer to the new content
-		self._buffer = new_buffer
+		self._buffer.seek(0)
+		self._buffer.truncate(0)
+		self._buffer.write(new_buffer.getvalue())
+		new_buffer.seek(0)
+		new_buffer.truncate(0)
+		new_buffer.close()
 
 	def replace_from_file(self, placeholder: str, file_path: str):
 		"""Replace a placeholder in the buffer with content loaded from another file."""
@@ -49,6 +65,7 @@ class HtmlTemplateProcessor:
 	
 	def get_content(self) -> str:
 		"""Get the processed HTML content."""
+		self._buffer.seek(0)
 		return self._buffer.getvalue()
 	
 	def minify_css(css_content: str) -> str:
@@ -67,8 +84,9 @@ if __name__ == "__main__":
 			style_content: str = HtmlTemplateProcessor.minify_css(file.read())
 			print(style_content)
 
-		processor = HtmlTemplateProcessor("templates/header.html")
+		processor: HtmlTemplateProcessor = HtmlTemplateProcessor("templates/header.html")
 		processor.replace_from_file("style_inline", "templates/style_inline.css")
+		processor.replace_from_file("header_js", "templates/header_js.html")
 		print(processor.get_content())
 
 	if len(sys.argv) > 1 and (sys.argv[1] == "-t" or sys.argv[1] == "--test"):
