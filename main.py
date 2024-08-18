@@ -19,10 +19,7 @@ from typing import Generator, Callable
 from collect.logging_config import setup_logging
 from collect.string_adorner import StringAdorner
 from collect.filepathtools import FilePathTools
-from collect.apicache import APICache
-from collect.imagecache import ImageCache
-from collect.ebayapi import eBayAPIHelper
-from collect.promptchat import PromptPersonalityAuctioneer
+from collect.ebayapi import EBayAuctions
 from collect.rss_tool import RssTool
 from collect.aws_helper import AwsS3Helper
 from collect.aws_helper import AwsCFHelper
@@ -78,6 +75,33 @@ class CollectBotTemplate:
 
 		return buffer_html.getvalue()
 
+	def auctions_to_html(ebay: EBayAuctions, exclude: list[str]) -> str:
+		bufauct: StringIO = StringIO()
+		bufauct.write(CollectBotTemplate.make_section_header("Auctions"))
+
+		bufsecs: StringIO = StringIO()
+		for auction in ebay.auctions:
+
+			bufsec: StringIO = StringIO()
+			bufsec.write(CollectBotTemplate.make_item_header(auction['title']))
+			html_: str = ebay._search_results_to_html(
+				items=auction['items'],
+				epn_category=auction['epn-category'],
+				exclude=exclude)
+			bufsec.write(CollectBotTemplate.make_content(html_))
+			bufsecs.write(CollectBotTemplate.make_section(bufsec.getvalue()))
+			bufsec.seek(0)
+			bufsec.truncate(0)
+			
+		bufauct.write(CollectBotTemplate.make_container(bufsecs.getvalue()))
+		return CollectBotTemplate.make_auctions(bufauct.getvalue())
+
+	def generate_html_header() -> str:
+		processor: HtmlTemplateProcessor = HtmlTemplateProcessor("templates/header.html")
+		processor.replace_from_file("style_inline", "templates/style_inline.css")
+		return processor.get_content()
+
+
 	@_adorner.md_adornment("**")
 	def md_make_bold(s: str) -> str: return s
 	
@@ -120,205 +144,6 @@ class CollectBotTemplate:
 
 	@_adorner.html_wrapper_attributes("h3", {"class": "h3"})
 	def make_h3(s: str) -> str: return s
-
-class EBayAuctions:
-	def __init__(self, filepath_cache_directory: str = "cache",
-				 filepath_image_directory: str = "httpd/i"):
-		self._ebay_api: eBayAPIHelper = eBayAPIHelper()
-		self._api_cache: APICache = APICache(filepath_cache_directory)
-		self._image_dir: str = filepath_image_directory
-
-		with open("config/auctions-ebay.json", "r") as file:
-			self._auctions: list[dict[str, any]] = json.load(file)
-
-	@property
-	def auctions(self) -> list[dict[str, any]]:
-		return self._auctions
-
-	def load_auctions(self):
-		for auction in self._auctions:
-			auction['items'] = self._search_top_items_from_catagory(
-				auction['id'],
-				ttl=ebay_refresh_time,
-				max_results=auction['count']
-			)
-		return self._auctions
-	
-	def most_watched(self) -> dict[str, any]:
-		return max(
-			[item for cat in self._auctions for item in cat['items']],
-			key=lambda x: int(x['listingInfo']['watchCount'])
-		)
-	
-	def auctions_to_html(self, exclude: list[str]) -> str:
-		bufauct: StringIO = StringIO()
-		bufauct.write(CollectBotTemplate.make_section_header("Auctions"))
-
-		bufsecs: StringIO = StringIO()
-		for auction in self.auctions:
-
-			bufsec: StringIO = StringIO()
-			bufsec.write(CollectBotTemplate.make_item_header(auction['title']))
-			html_: str = self._search_results_to_html(
-				items=auction['items'],
-				epn_category=auction['epn-category'],
-				exclude=exclude)
-			bufsec.write(CollectBotTemplate.make_content(html_))
-			bufsecs.write(CollectBotTemplate.make_section(bufsec.getvalue()))
-			bufsec.seek(0)
-			bufsec.truncate(0)
-			
-		bufauct.write(CollectBotTemplate.make_container(bufsecs.getvalue()))
-		return CollectBotTemplate.make_auctions(bufauct.getvalue())
-
-	def _search_results_to_html(self, items: list[dict], epn_category: str,
-							exclude:list[str] = None,
-							display_image: bool = False) -> str:
-		s: str = self._search_results_to_markdown(items, epn_category, exclude, display_image)
-		return markdown.markdown(s, extensions=['attr_list'])
-
-	def _search_top_items_from_catagory(self, category_id: str, ttl: int, max_results: int) -> list[dict[str, any]]:
-		if not category_id or len(category_id) > 6:
-			raise ValueError("category_id is required and must be less than six characters.")
-		self._api_cache.cache_file = str.join(".", [str.zfill(category_id, 6), "json"])	
-		search_results: list[dict[str, any]] = self._api_cache.cached_api_call(self._ebay_api.search_top_watched_items, category_id, max_results)
-		return search_results
-
-	def top_item_to_markdown(self, item: dict[str, any], epn_category: str) -> str:
-		if not item:
-			raise ValueError("Item not set.")
-
-		"""Have the auctioneer generate a headline for the item."""
-		auctioneer: PromptPersonalityAuctioneer = PromptPersonalityAuctioneer()
-		auctioneer.add_headline(id=item['itemId'], headline=item['title'])
-		headlines_iterator = auctioneer.get_headlines()
-
-		"""Get the first headline from the auctioneer.  There should only be one."""
-		title: str = ""
-		for headline in headlines_iterator:
-			title = headline['headline']
-			break
-
-		buffer: StringIO = StringIO()
-		item_url: str = item['viewItemURL']
-		epn_url: str = eBayAPIHelper.generate_epn_link(item_url, epn_category)
-		end_time_string: str = item['listingInfo']['endTime']
-		end_datetime: datetime = datetime.strptime(end_time_string, "%Y-%m-%dT%H:%M:%S.%fZ")
-		now: datetime = datetime.now(tz=end_datetime.tzinfo)
-
-		image_url = item['galleryURL']
-		image_url_large: str = ""
-
-		if image_url.endswith("s-l140.jpg"):
-			image_url = image_url.replace("s-l140.jpg", "s-l400.jpg")
-
-		try:
-			image_cache = ImageCache(url=image_url, identifier=item['itemId'], cache_dir=self._image_dir)
-		except Exception as e:
-			image_cache = ImageCache(url=item['galleryURL'], identifier=item['itemId'], cache_dir=self._image_dir)
-			print(f"Error: {e}")
-
-		try:
-			if image_url.endswith("s-l400.jpg"):
-				image_url_large = image_url.replace("s-l400.jpg", "s-l1600.jpg")
-			image_cache_large = ImageCache(url=image_url_large, identifier=item['itemId'] + "_large", cache_dir=self._image_dir)
-			local_path: str = image_cache_large.get_image_path()
-			if image_cache_large._downloaded_image:
-				aws_helper: AwsS3Helper = AwsS3Helper(bucket_name='hobbyreport.net', region='us-east-1')
-				aws_helper.upload_images_with_tracking('httpd/i')
-
-		except Exception as e:
-			print(f"Error: {e}")
-
-		local_path = image_cache.get_image_path()
-		path_obj = Path(local_path)
-		filename: str = path_obj.name
-		new_path: str = str(Path('i') / filename)
-
-		buffer.write("![image](")
-		buffer.write(new_path)
-		buffer.write("){: .th_img }\n\n")
-
-		buffer.write("**[")
-		buffer.write(title)
-		buffer.write("](")
-		buffer.write(epn_url)
-
-		if end_datetime - now < timedelta(days=1):
-			buffer.write("){: .th_ending }**\n\n")
-		else:
-			buffer.write("){: .th_ }**\n\n")
-
-		return buffer.getvalue()
-
-	def _search_results_to_markdown(self, items: list[dict], epn_category: str,
-								exclude:list[str] = None,
-								display_image: bool = False) -> str:
-		"""Converts a list of search results to markdown."""
-		buffer: StringIO = StringIO()
-		if items:
-			item: dict = None
-			item_id: str = ""
-			ctr: int = 0
-
-			auctioneer: PromptPersonalityAuctioneer = PromptPersonalityAuctioneer()
-			for item in items:
-				item_id = item['itemId']
-				if exclude and item_id in exclude:
-					continue
-
-				auctioneer.add_headline(id=item_id, headline=item['title'])
-
-			headlines_ids: dict[str, str] = {}
-			headlines_iterator = auctioneer.get_headlines()
-
-			for headline in headlines_iterator:
-				headlines_ids[headline['identifier']] = headline['headline']
-
-			auctioneer.clear_headlines()
-
-			for item in items:
-				item_id = item['itemId']
-				if exclude and item_id in exclude:
-					continue
-				"""_summary_
-					Item has these properties, and more:
-					- ['title']: str
-					- ['listingInfo']['watchCount']: int
-					- ['sellingStatus']['currentPrice']['value']: float
-					- ['sellingStatus']['currentPrice']['_currencyId']: str
-					- ['topRatedListing']: bool
-				"""
-				title = headlines_ids.get(item_id)
-				if not title:
-					title = item['title']
-
-				item_url = item['viewItemURL']
-				epn_url = eBayAPIHelper.generate_epn_link(item_url, epn_category)
-				end_time_string: str = item['listingInfo']['endTime']
-				end_datetime: datetime = datetime.strptime(end_time_string, "%Y-%m-%dT%H:%M:%S.%fZ")
-				now: datetime = datetime.now(tz=end_datetime.tzinfo)
-
-				if end_datetime > now:
-					if display_image and ctr == 0:
-						buffer.write("![image](")
-						buffer.write(item['galleryURL'])
-						buffer.write(")\n\n")
-
-					buffer.write(" * [")
-					buffer.write(title)
-					buffer.write("](")
-					buffer.write(epn_url)
-
-					if end_datetime - now < timedelta(days=1):
-						buffer.write("){: .a_ending}\n")
-					else:
-						buffer.write(")\n")
-
-					ctr += 1
-
-		return buffer.getvalue()
-
 
 class CollectBot:
 	"""This is the main class for the CollectBot."""
@@ -467,46 +292,36 @@ if __name__ == "__main__":
 
 	app_id: uuid = uuid.UUID("27DC793C-9C69-4565-B611-9318933CA561")
 	app_name: str = "Hobby Report"
-	ebay_refresh_time: int = 4 * 60 * 60
 
 	extensions: list[str] = ['attr_list']
 	bufhtml: StringIO = StringIO(initial_value="")
 
-	# Write the HTML header, nameplate, and lead headline
-	processor: HtmlTemplateProcessor = HtmlTemplateProcessor("templates/header.html")
-	processor.replace_from_file("style_inline", "templates/style_inline.css")
-	bufhtml.write(processor.get_content())
-	bufhtml.write("\t<div id=\"newspaper\">\n")
-
-	# Write Site Nameplate
-	bufhtml.write(CollectBotTemplate.make_nameplate(app_name))
-
 	# Initialize the eBay API tools
 	ebay_auctions: EBayAuctions = EBayAuctions(
 		filepath_cache_directory=collectbot.filepath_cache_directory,
-		filepath_image_directory=collectbot.filepath_image_directory
+		filepath_image_directory=collectbot.filepath_image_directory,
+		refresh_time=4 * 60 * 60
 	)
 	ebay_auctions.load_auctions()
-
-	# Get the top item
 	topitem: dict[str, any] = ebay_auctions.most_watched()
-	top_item_id: str = topitem['itemId']
-
 	top_item_md: str = ebay_auctions.top_item_to_markdown(
 		topitem,
 		epn_category=collectbot.epn_category_headline_link
 	)
+
+	# Write the HTML header, nameplate, and lead headline
+	bufhtml.write(CollectBotTemplate.generate_html_header())
+
+	bufhtml.write("\t<div id=\"newspaper\">\n")
+
+	bufhtml.write(CollectBotTemplate.make_nameplate(app_name))
 		
-	lead_headline: str = markdown.markdown(top_item_md, extensions=extensions)
-	if not lead_headline:
-		logger.error("lead_headline is required.")
-		raise ValueError("lead_headline is required.")
-
-	lead_headline = CollectBotTemplate.make_lead_headline(lead_headline)
-
-	# Write the lead headline
-	bufhtml.write(lead_headline)
-	bufhtml.write(ebay_auctions.auctions_to_html(exclude=[top_item_id]))
+	bufhtml.write(
+		CollectBotTemplate.make_lead_headline(markdown.markdown(top_item_md, extensions=extensions))
+	)
+	bufhtml.write(
+		CollectBotTemplate.auctions_to_html(ebay_auctions, exclude=[topitem['itemId']])
+	)
 
 	buffer_html_news: StringIO = StringIO()
 	buffer_html_news.write(CollectBotTemplate.make_section_header("News"))
@@ -551,9 +366,9 @@ if __name__ == "__main__":
 			file.write(style_content)
 			logger.info(f"File httpd/style.css created.")
 
-	#collectbot.update_edition()
+	collectbot.update_edition()
 	logger.info(f"Edition updated to {collectbot.edition}.")
 
 	#Upload to S3
-	#collectbot.upload_to_s3()
-	#logger.info(f"Files uploaded to AWS S3.")
+	collectbot.upload_to_s3()
+	logger.info(f"Files uploaded to AWS S3.")
