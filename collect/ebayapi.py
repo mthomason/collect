@@ -8,7 +8,7 @@ from ebaysdk.finding import Connection as Finding
 from ebaysdk.exception import ConnectionError
 from urllib.parse import urlencode, urlparse, urlunparse, parse_qsl, ParseResult
 
-class eBayAPI:
+class eBayAPIHelper:
 	def __init__(self):
 		self.appid = os.getenv('EBAY_APPID')
 		self.certid = os.getenv('EBAY_CERTID')
@@ -43,12 +43,12 @@ class eBayAPI:
 		url_new: ParseResult = ParseResult(url_parts.scheme, url_parts.netloc, url_path_new, url_parts.params, urlencode(query), url_parts.fragment)
 		return urlunparse(url_new)
 
+	@staticmethod
 	def generate_epn_link_rover(ebay_url: str, tracking_id: str, campaign_id: str) -> str:
 		program_id = "710-53481-19255-0"  # Check your EPN account for the correct value
 		encoded_url = urllib.parse.quote(ebay_url)
 		partner_link = f"https://rover.ebay.com/rover/1/{program_id}/{tracking_id}/{campaign_id}?mpre={encoded_url}"
 		return partner_link
-
 
 	def search_top_watched_items(self, category_id: str, max_results: int = 10) -> list[dict[str, any]]:
 		try:
