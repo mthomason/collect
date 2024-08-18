@@ -1,4 +1,4 @@
-# /collect/logging_config.py
+#!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 
 import logging
