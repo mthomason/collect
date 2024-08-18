@@ -31,4 +31,4 @@ if __name__ == "__main__":
 	collectbot.create_style_sheet()
 	collectbot.backup_files()
 	collectbot.update_edition()
-	#collectbot.upload_to_s3()
+	collectbot.upload_to_s3()

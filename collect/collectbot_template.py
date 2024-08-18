@@ -10,6 +10,7 @@ from typing import Generator, Callable
 from collect.ebayapi import EBayAuctions
 from collect.html_template_processor import HtmlTemplateProcessor
 from collect.string_adorner import StringAdorner
+from collect.ebayapi import AuctionListing
 
 logger = logging.getLogger(__name__)
 
@@ -36,6 +37,13 @@ class CollectBotTemplate:
 		buffer.write("</urlset>\n")
 		return buffer.getvalue()
 	
+	def html_wrapper_no_content(tag: str, attributes: dict = None) -> str:
+		assert tag, "tag is required."
+		if not attributes:
+			return f'<{tag} />'
+		attrs = " ".join([f'{k}="{v}"' for k, v in (attributes or {}).items()])
+		return f'<{tag} {attrs} />'
+
 	def html_wrapper(tag: str, content: str, attributes: dict = None) -> str:
 		assert tag, "tag is required."
 		assert content, "content is required."
@@ -50,8 +58,12 @@ class CollectBotTemplate:
 
 		buffer_li: StringIO = StringIO()
 		for item in fetch_func():
-			link: str = CollectBotTemplate.html_wrapper("a", item['title'], {"href": item['link']})
-			list_item: str = CollectBotTemplate.html_wrapper("li", link)
+			attribs: dict = {
+				"href": item['link'],
+				"target": "_blank"
+			}
+			link: str = CollectBotTemplate.html_wrapper(tag="a", content=item['title'], attributes=attribs)
+			list_item: str = CollectBotTemplate.html_wrapper(tag="li", content=link)
 			buffer_li.write(list_item)
 			buffer_li.write("\n")
 
@@ -113,8 +125,7 @@ class CollectBotTemplate:
 	def make_nameplate(s: str) -> str: return s
 
 	@_adorner.html_wrapper_attributes("div", {"id": "lead-headline"})
-	def make_lead_headline(s: str) -> str:
-		return markdown.markdown(s, extensions=['attr_list'])
+	def make_lead_headline(s: str) -> str: return s
 
 	@_adorner.html_wrapper_attributes("div", {"id": "auctions"})
 	def make_auctions(s: str) -> str: return s

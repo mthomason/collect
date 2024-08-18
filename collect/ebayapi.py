@@ -16,7 +16,16 @@ from ebaysdk.finding import Connection as Finding
 from ebaysdk.exception import ConnectionError
 from io import StringIO
 from pathlib import Path
+from typing import NamedTuple
 from urllib.parse import urlencode, urlparse, urlunparse, parse_qsl, ParseResult
+
+
+class AuctionListing(NamedTuple):
+	image: str
+	title: str
+	url: str
+	ending_soon: bool
+
 
 class eBayAPIHelper:
 	def __init__(self):
@@ -126,7 +135,7 @@ class EBayAuctions:
 		search_results: list[dict[str, any]] = self._api_cache.cached_api_call(self._ebay_api.search_top_watched_items, category_id, max_results)
 		return search_results
 
-	def top_item_to_markdown(self, item: dict[str, any], epn_category: str) -> str:
+	def top_item_to_markdown(self, item: dict[str, any], epn_category: str) -> AuctionListing:
 		if not item:
 			raise ValueError("Item not set.")
 
@@ -174,24 +183,14 @@ class EBayAuctions:
 
 		local_path = image_cache.get_image_path()
 		path_obj = Path(local_path)
-		filename: str = path_obj.name
-		new_path: str = str(Path('i') / filename)
 
-		buffer.write("![image](")
-		buffer.write(new_path)
-		buffer.write("){: .th_img }\n\n")
-
-		buffer.write("**[")
-		buffer.write(title)
-		buffer.write("](")
-		buffer.write(epn_url)
-
-		if end_datetime - now < timedelta(days=1):
-			buffer.write("){: .th_ending }**\n\n")
-		else:
-			buffer.write("){: .th_ }**\n\n")
-
-		return buffer.getvalue()
+		auction_listing: AuctionListing = AuctionListing(
+			image=str(Path('i') / path_obj.name),
+			title=title,
+			url=epn_url,
+			ending_soon=end_datetime - now < timedelta(days=1)
+		)
+		return auction_listing
 
 	def _search_results_to_markdown(self, items: list[dict], epn_category: str,
 								exclude:list[str] = None,

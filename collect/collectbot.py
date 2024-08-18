@@ -6,13 +6,12 @@ from io import StringIO
 import json
 import logging
 import markdown
-import pprint
 
 from os import path
 
 from collect.aws_helper import AwsCFHelper, AwsS3Helper
 from collect.collectbot_template import CollectBotTemplate
-from collect.ebayapi import EBayAuctions
+from collect.ebayapi import EBayAuctions, AuctionListing
 from collect.filepathtools import FilePathTools
 from collect.html_template_processor import HtmlTemplateProcessor
 from collect.rss_tool import RssTool
@@ -133,11 +132,37 @@ class CollectBot:
 		return CollectBotTemplate.create_html_header()
 	
 	def _create_html_body(self, ebay_auctions: EBayAuctions) -> str:
+
+		def strip_outter_tag(s: str) -> str:
+			""" strips outer html tags """
+			start = s.find('>')+1
+			end = len(s)-s[::-1].find('<')-1
+			return s[start:end]
+
 		topitem: dict[str, any] = ebay_auctions.most_watched()
-		top_item_md: str = ebay_auctions.top_item_to_markdown(
+		auction_listing: AuctionListing = ebay_auctions.top_item_to_markdown(
 			topitem,
 			epn_category=self.epn_category_headline_link
 		)
+
+		img: str = CollectBotTemplate.html_wrapper_no_content(tag="img", attributes={
+			"src": auction_listing.image,
+			"class": "th_img"
+		})
+		img = CollectBotTemplate.html_wrapper(tag="p", content=img)
+
+		attribs: dict[str, str] = { "href": auction_listing.url, "target": "_blank" }
+		if auction_listing.ending_soon:
+			attribs["class"] = "th_ending"
+		else:
+			attribs["class"] = "th_"
+
+		title: str = strip_outter_tag(markdown.markdown(auction_listing.title))
+		link: str = CollectBotTemplate.html_wrapper(tag="a", content=title, attributes=attribs)
+		link = CollectBotTemplate.html_wrapper(tag="p", content=link)
+
+		top_item_md: str = "\n".join((img, link))
+
 		bufbody: StringIO = StringIO()
 		bufbody.write(CollectBotTemplate.make_nameplate(self._app_name))
 		bufbody.write(CollectBotTemplate.make_lead_headline(top_item_md))
