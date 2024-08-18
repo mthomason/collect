@@ -17,8 +17,8 @@ class CollectBotTemplate:
 	_adorner = StringAdorner()
 
 	def __init__(self):
-		self._md = markdown.Markdown(extensions=['attr_list'])
-
+		pass
+	
 	def create_sitemap(self, urls: list[str]) -> str:
 		buffer: StringIO = StringIO()
 		buffer.write("<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n")
@@ -78,31 +78,40 @@ class CollectBotTemplate:
 				exclude=exclude)
 			bufsec.write(CollectBotTemplate.make_content(html_))
 			bufsecs.write(CollectBotTemplate.make_section(bufsec.getvalue()))
-			bufsec.seek(0)
-			bufsec.truncate(0)
+			bufsec.close()
 			
 		bufauct.write(CollectBotTemplate.make_container(bufsecs.getvalue()))
-		return CollectBotTemplate.make_auctions(bufauct.getvalue())
+		result: str = CollectBotTemplate.make_auctions(bufauct.getvalue())
 
-	def generate_html_header() -> str:
+		bufsecs.close()
+		bufauct.close()
+		return result
+
+	def create_html_header() -> str:
 		processor: HtmlTemplateProcessor = HtmlTemplateProcessor("templates/header.html")
 		processor.replace_from_file("style_inline", "templates/style_inline.css")
 		return processor.get_content()
-
+	
+	def create_html_footer() -> str:
+		with open('templates/footer.html', 'r', encoding="utf-8") as file:
+			return file.read()
 
 	@_adorner.md_adornment("**")
 	def md_make_bold(s: str) -> str: return s
+
+	@_adorner.md_adornment("*")
+	def md_make_italic(s: str) -> str: return s
 	
 	@_adorner.html_wrapper_attributes("div", {"id": "newspaper"})
-	def make_newspaper(s: str) -> str:
-		return s
+	def make_newspaper(s: str) -> str: return s
 
 	@_adorner.html_wrapper_attributes("div", {"id": "nameplate"})
 	@_adorner.html_wrapper_attributes("h1", {"class": "h1"})
 	def make_nameplate(s: str) -> str: return s
 
 	@_adorner.html_wrapper_attributes("div", {"id": "lead-headline"})
-	def make_lead_headline(s: str) -> str: return s
+	def make_lead_headline(s: str) -> str:
+		return markdown.markdown(s, extensions=['attr_list'])
 
 	@_adorner.html_wrapper_attributes("div", {"id": "auctions"})
 	def make_auctions(s: str) -> str: return s
@@ -124,15 +133,9 @@ class CollectBotTemplate:
 	def make_section_header(s: str) -> str: return s
 
 	@_adorner.html_wrapper_attributes("div", {"class": "item-header"})
-	@_adorner.html_wrapper_attributes("h1", {"class": "h3"})
+	@_adorner.html_wrapper_attributes("h3", {"class": "h3"})
 	def make_item_header(s: str) -> str:
 		return s
-
-	@_adorner.html_wrapper_attributes("h1", {"class": "h1"})
-	def make_h1(s: str) -> str: return s
-
-	@_adorner.html_wrapper_attributes("h2", {"class": "h2"})
-	def make_h2(s: str) -> str: return s
 
 	@_adorner.html_wrapper_attributes("h3", {"class": "h3"})
 	def make_h3(s: str) -> str: return s

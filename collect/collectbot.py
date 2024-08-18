@@ -5,18 +5,22 @@ from datetime import datetime, timezone
 from io import StringIO
 import json
 import logging
+import markdown
 from os import path
 
 from collect.aws_helper import AwsCFHelper, AwsS3Helper
 from collect.collectbot_template import CollectBotTemplate
+from collect.ebayapi import EBayAuctions
 from collect.filepathtools import FilePathTools
+from collect.html_template_processor import HtmlTemplateProcessor
 from collect.rss_tool import RssTool
+
 
 logger = logging.getLogger(__name__)
 
 class CollectBot:
 	"""This is the main class for the CollectBot."""
-	def __init__(self):
+	def __init__(self, app_name: str = "Hobby Report"):
 		"""_summary_
 			Initializes the CollectBot.
 
@@ -29,18 +33,21 @@ class CollectBot:
 				"output-file-name": "index.html"
 			}
 		"""
+		self.collectbot_template: CollectBotTemplate = CollectBotTemplate()
 		self._config: dict[str, any] = {}
+		self._markdown_extensions: list[str] = ['attr_list']
+		self._app_name: str = app_name
 		with open("config/config.json", "r") as file:
 			self._config = json.load(file)
 		with open("config/epn-categories.json", "r") as file:
 			self._epn_categories = json.load(file)
 
-	def update_edition(self):
-		"""Updates the edition of the CollectBot."""
-		self._config["edition"] = self._config["edition"] + 1
-		self._config["last-modified"] = datetime.now(timezone.utc).isoformat()
-		with open("config/config.json", "w") as file:
-			json.dump(self._config, file, indent="\t")
+	@property
+	def filepath_log(self) -> str:
+		return path.join(
+			self._config["directory-log"],
+			self._config["output-log-file"]
+		)
 
 	@property
 	def filepath_output_html(self) -> str:
@@ -107,6 +114,65 @@ class CollectBot:
 		else:
 			r = self.epn_category_default
 		return r
+	
+	def write_html_to_file(self, ebay_auctions: EBayAuctions):
+		"""Writes the HTML to the output file."""
+		html: str = self.create_html(ebay_auctions)
+		with open(self.filepath_output_html, 'w', encoding="utf-8") as file:
+			file.write(html)
+			logger.info(f"File {self.filepath_output_html} created.")
+
+	def create_html(self, ebay_auctions: EBayAuctions) -> str:
+		_header: str = self._create_html_header()
+		_body: str = self._create_html_body(ebay_auctions=ebay_auctions)
+		_footer: str = self.create_html_footer()
+		return "".join((_header, _body, _footer))
+	
+	def _create_html_header(self) -> str:
+		return CollectBotTemplate.create_html_header()
+	
+	def _create_html_body(self, ebay_auctions: EBayAuctions) -> str:
+		topitem: dict[str, any] = ebay_auctions.most_watched()
+		top_item_md: str = ebay_auctions.top_item_to_markdown(
+			topitem,
+			epn_category=self.epn_category_headline_link
+		)
+		bufbody: StringIO = StringIO()
+		bufbody.write(CollectBotTemplate.make_nameplate(self._app_name))
+		bufbody.write(CollectBotTemplate.make_lead_headline(top_item_md))
+		bufbody.write(CollectBotTemplate.auctions_to_html(ebay_auctions, exclude=[topitem['itemId']]))
+		buffer_html_news: StringIO = StringIO()
+		buffer_html_news.write(CollectBotTemplate.make_section_header("News"))
+		buffer_html_news.write(self.section_news_to_html())
+		bufbody.write(CollectBotTemplate.make_news(buffer_html_news.getvalue()))
+		result: str = CollectBotTemplate.make_newspaper(bufbody.getvalue())
+		buffer_html_news.close()
+		bufbody.close()
+		return result
+
+	def create_html_footer(self) -> str:
+		return CollectBotTemplate.create_html_footer()
+
+	def create_sitemap(self, urls: list[str]):
+		filepath_output:str = path.join(self.filepath_output_directory, "sitemap.xml")
+		with open(filepath_output, 'w', encoding="utf-8") as file:
+			file.write(self.collectbot_template.create_sitemap(urls))
+			logger.info(f"File {filepath_output} created.")
+
+	def create_style_sheet(self):
+		"""Creates the style sheet for the CollectBot."""
+		with open("templates/style.css", "r") as file:
+			style_content: str = HtmlTemplateProcessor.minify_css(file.read())
+			with open("httpd/style.css", "w") as file:
+				file.write(style_content)
+				logger.info("File httpd/style.css created.")
+
+	def update_edition(self):
+		"""Updates the edition of the CollectBot."""
+		self._config["edition"] = self._config["edition"] + 1
+		self._config["last-modified"] = datetime.now(timezone.utc).isoformat()
+		with open("config/config.json", "w") as file:
+			json.dump(self._config, file, indent="\t")
 
 	def section_news(self, title: str, urls:list[dict[str, any]],
 					 interval: int, filename: str,
@@ -136,6 +202,8 @@ class CollectBot:
 		"""Backs up the output file."""
 		FilePathTools.create_directory_if_not_exists("backup")
 		FilePathTools.backup_file(self.filepath_output_html, "backup")
+		logger.info(f"File {self.filename_output} moved to backup.")
+
 
 	def upload_to_s3(self):
 		"""Uploads the output file to S3."""

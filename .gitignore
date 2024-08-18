@@ -4,7 +4,7 @@ index.html
 cache/
 backup/
 httpd/
-log/
+logs/
 config/
 
 # Environment variables
