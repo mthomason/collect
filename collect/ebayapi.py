@@ -19,13 +19,16 @@ from pathlib import Path
 from typing import NamedTuple
 from urllib.parse import urlencode, urlparse, urlunparse, parse_qsl, ParseResult
 
-
-class AuctionListing(NamedTuple):
-	image: str
+class AuctionListingSimple(NamedTuple):
 	title: str
 	url: str
 	ending_soon: bool
 
+class AuctionListing(NamedTuple):
+	title: str
+	url: str
+	ending_soon: bool
+	image: str
 
 class eBayAPIHelper:
 	def __init__(self):
@@ -123,10 +126,8 @@ class EBayAuctions:
 		)
 	
 	def _search_results_to_html(self, items: list[dict], epn_category: str,
-							exclude:list[str] = None,
-							display_image: bool = False) -> str:
-		s: str = self._search_results_to_markdown(items, epn_category, exclude, display_image)
-		return markdown.markdown(s, extensions=['attr_list'])
+							exclude:list[str] = None) -> list[AuctionListingSimple]:
+		return self._search_results_to_markdown(items, epn_category, exclude)
 
 	def _search_top_items_from_catagory(self, category_id: str, ttl: int, max_results: int) -> list[dict[str, any]]:
 		if not category_id or len(category_id) > 6:
@@ -150,7 +151,6 @@ class EBayAuctions:
 			title = headline['headline']
 			break
 
-		buffer: StringIO = StringIO()
 		item_url: str = item['viewItemURL']
 		epn_url: str = eBayAPIHelper.generate_epn_link(item_url, epn_category)
 		end_time_string: str = item['listingInfo']['endTime']
@@ -193,10 +193,11 @@ class EBayAuctions:
 		return auction_listing
 
 	def _search_results_to_markdown(self, items: list[dict], epn_category: str,
-								exclude:list[str] = None,
-								display_image: bool = False) -> str:
+								exclude:list[str] = None) -> list[AuctionListingSimple]:
 		"""Converts a list of search results to markdown."""
-		buffer: StringIO = StringIO()
+
+		auction_listings: list[AuctionListingSimple] = []
+
 		if items:
 			item: dict = None
 			item_id: str = ""
@@ -234,31 +235,38 @@ class EBayAuctions:
 				if not title:
 					title = item['title']
 
-				item_url = item['viewItemURL']
-				epn_url = eBayAPIHelper.generate_epn_link(item_url, epn_category)
+				epn_url = eBayAPIHelper.generate_epn_link(item['viewItemURL'], epn_category)
 				end_time_string: str = item['listingInfo']['endTime']
 				end_datetime: datetime = datetime.strptime(end_time_string, "%Y-%m-%dT%H:%M:%S.%fZ")
 				now: datetime = datetime.now(tz=end_datetime.tzinfo)
 
 				if end_datetime > now:
-					if display_image and ctr == 0:
-						buffer.write("![image](")
-						buffer.write(item['galleryURL'])
-						buffer.write(")\n\n")
 
-					buffer.write(" * [")
-					buffer.write(title)
-					buffer.write("](")
-					buffer.write(epn_url)
+					auction_listing_simple: AuctionListingSimple = AuctionListingSimple(
+						title=title,
+						url=epn_url,
+						ending_soon=end_datetime - now < timedelta(days=1)
+					)
+					auction_listings.append(auction_listing_simple)
 
-					if end_datetime - now < timedelta(days=1):
-						buffer.write("){: .a_ending}\n")
-					else:
-						buffer.write(")\n")
+					#if display_image and ctr == 0:
+					#	buffer.write("![image](")
+					#	buffer.write(item['galleryURL'])
+					#	buffer.write(")\n\n")
+
+					#buffer.write(" * [")
+					#buffer.write(title)
+					#buffer.write("](")
+					#buffer.write(epn_url)
+
+					#if end_datetime - now < timedelta(days=1):
+					#	buffer.write("){: .a_ending}\n")
+					#else:
+					#	buffer.write(")\n")
 
 					ctr += 1
 
-		return buffer.getvalue()
+		return auction_listings
 
 if __name__ == "__main__":
 	raise ValueError("This script is not meant to be run directly.")

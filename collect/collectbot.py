@@ -133,12 +133,6 @@ class CollectBot:
 	
 	def _create_html_body(self, ebay_auctions: EBayAuctions) -> str:
 
-		def strip_outter_tag(s: str) -> str:
-			""" strips outer html tags """
-			start = s.find('>')+1
-			end = len(s)-s[::-1].find('<')-1
-			return s[start:end]
-
 		topitem: dict[str, any] = ebay_auctions.most_watched()
 		auction_listing: AuctionListing = ebay_auctions.top_item_to_markdown(
 			topitem,
@@ -157,7 +151,7 @@ class CollectBot:
 		else:
 			attribs["class"] = "th_"
 
-		title: str = strip_outter_tag(markdown.markdown(auction_listing.title))
+		title: str = CollectBotTemplate.strip_outter_tag(markdown.markdown(auction_listing.title))
 		link: str = CollectBotTemplate.html_wrapper(tag="a", content=title, attributes=attribs)
 		link = CollectBotTemplate.html_wrapper(tag="p", content=link)
 

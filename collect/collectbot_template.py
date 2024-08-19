@@ -10,7 +10,7 @@ from typing import Generator, Callable
 from collect.ebayapi import EBayAuctions
 from collect.html_template_processor import HtmlTemplateProcessor
 from collect.string_adorner import StringAdorner
-from collect.ebayapi import AuctionListing
+from collect.ebayapi import AuctionListing, AuctionListingSimple
 
 logger = logging.getLogger(__name__)
 
@@ -86,11 +86,22 @@ class CollectBotTemplate:
 
 			bufsec: StringIO = StringIO()
 			bufsec.write(CollectBotTemplate.make_item_header(auction['title']))
-			html_: str = ebay._search_results_to_html(
+			auction_listings: list[AuctionListingSimple] = ebay._search_results_to_html(
 				items=auction['items'],
 				epn_category=auction['epn-category'],
 				exclude=exclude)
-			bufsec.write(CollectBotTemplate.make_content(html_))
+
+			html_: str = ""
+			for listing in auction_listings:
+				attribs: dict = { "href": listing.url, "target": "_blank" }
+				if listing.ending_soon:
+					attribs["class"] = "a_ending"
+				title: str = CollectBotTemplate.strip_outter_tag(markdown.markdown(listing.title))
+				link: str = CollectBotTemplate.html_wrapper(tag="a", content=title, attributes=attribs)
+				link = CollectBotTemplate.html_wrapper(tag="li", content=link)
+				html_ += link + "\n"
+
+			bufsec.write(CollectBotTemplate.make_content_ul(html_))
 			bufsecs.write(CollectBotTemplate.make_section(bufsec.getvalue()))
 			bufsec.close()
 			
@@ -110,6 +121,12 @@ class CollectBotTemplate:
 	def create_html_footer() -> str:
 		with open('templates/footer.html', 'r', encoding="utf-8") as file:
 			return file.read()
+		
+	def strip_outter_tag(s: str) -> str:
+		""" strips outer html tags """
+		start = s.find('>')+1
+		end = len(s)-s[::-1].find('<')-1
+		return s[start:end]
 
 	@_adorner.md_adornment("**")
 	def md_make_bold(s: str) -> str: return s
