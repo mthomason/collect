@@ -141,7 +141,8 @@ class CollectBot:
 
 		img: str = CollectBotTemplate.html_wrapper_no_content(tag="img", attributes={
 			"src": auction_listing.image,
-			"class": "th_img"
+			"class": "th_img",
+			"alt": "Featured Auction"
 		})
 		img = CollectBotTemplate.html_wrapper(tag="p", content=img)
 
@@ -227,7 +228,11 @@ class CollectBot:
 
 	def upload_to_s3(self):
 		"""Uploads the output file to S3."""
-		aws_helper: AwsS3Helper = AwsS3Helper(bucket_name='hobbyreport.net', region='us-east-1')
+		aws_helper: AwsS3Helper = AwsS3Helper(
+			bucket_name=self._config['aws-s3-bucket-name'],
+			region=self._config['aws-s3-region'],
+			ensure_bucket=bool(self._config['aws-s3-ensure-bucket'])
+			)
 		aws_helper.upload_images_with_tracking('httpd/i')
 		aws_helper.upload_file(file_path='httpd/index.html', object_name='index.html')
 		aws_helper.upload_file(file_path='httpd/sitemap.xml', object_name='sitemap.xml')

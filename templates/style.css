@@ -33,11 +33,11 @@ a.th_, a.th_ending {
 .content { display: flex; align-items: flex-start; }
 .content > p { text-align: center; margin-right: 20px; width: 150px }
 img { margin-right: 20px; }
-ul {
+ul, ol {
 	margin: 0; padding: 0; padding-top: 1em; padding-left: 1em;
 	line-height: 1.3em; list-style-type: none;
 }
-ul { font-size: 0.8em; }
+ul, ol { font-size: 0.8em; }
 .container { display: grid; grid-template-columns: 1fr; gap: 20px; }
 
 @media (max-width: 767px) {

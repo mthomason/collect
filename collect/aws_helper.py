@@ -17,7 +17,7 @@ from botocore.exceptions import NoCredentialsError, ClientError
 logger = logging.getLogger(__name__)
 
 class AwsS3Helper:
-	def __init__(self, bucket_name, region=None):
+	def __init__(self, bucket_name, region=None, ensure_bucket=True):
 		load_dotenv()
 
 		aws_akey: str | None = os.getenv('AWS_ACCESS_KEY_ID')
@@ -37,7 +37,8 @@ class AwsS3Helper:
 
 		self.tracking_file = "cache/upload_tracking.json"
 
-		self._ensure_bucket()
+		if ensure_bucket:
+			self._ensure_bucket()
 
 	def _ensure_bucket(self):
 		try:
@@ -176,7 +177,6 @@ class AwsCFHelper:
 			}
 		)
 		return invalidation['Invalidation']['Id']
-
 
 if __name__ == "__main__":
 	import sys

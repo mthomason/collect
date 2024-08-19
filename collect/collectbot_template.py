@@ -6,7 +6,7 @@ from io import StringIO
 import logging
 import markdown
 
-from typing import Generator, Callable
+from typing import Generator, Callable, Final
 from collect.ebayapi import EBayAuctions
 from collect.html_template_processor import HtmlTemplateProcessor
 from collect.string_adorner import StringAdorner
@@ -16,6 +16,7 @@ logger = logging.getLogger(__name__)
 
 class CollectBotTemplate:
 	_adorner = StringAdorner()
+	_html_feature_trailing_slash_on_void: Final[bool] = False
 
 	def __init__(self):
 		pass
@@ -42,7 +43,12 @@ class CollectBotTemplate:
 		if not attributes:
 			return f'<{tag} />'
 		attrs = " ".join([f'{k}="{v}"' for k, v in (attributes or {}).items()])
-		return f'<{tag} {attrs} />'
+		result: str = ""
+		if CollectBotTemplate._html_feature_trailing_slash_on_void:
+			result = f'<{tag} {attrs} />'
+		else:
+			result = f'<{tag} {attrs}>'
+		return result
 
 	def html_wrapper(tag: str, content: str, attributes: dict = None) -> str:
 		assert tag, "tag is required."
@@ -101,16 +107,22 @@ class CollectBotTemplate:
 				link = CollectBotTemplate.html_wrapper(tag="li", content=link)
 				html_ += link + "\n"
 
-			bufsec.write(CollectBotTemplate.make_content_ul(html_))
+			bufsec.write("\n")
+			bufsec.write(CollectBotTemplate.make_content_ol(html_))
+			bufsec.write("\n")
 			bufsecs.write(CollectBotTemplate.make_section(bufsec.getvalue()))
+			bufsecs.write("\n")
+			bufsec.seek(0)
+			bufsec.truncate(0)
 			bufsec.close()
 			
 		bufauct.write(CollectBotTemplate.make_container(bufsecs.getvalue()))
+		bufauct.write("\n")
 		result: str = CollectBotTemplate.make_auctions(bufauct.getvalue())
 
 		bufsecs.close()
 		bufauct.close()
-		return result
+		return result + "\n"
 
 	def create_html_header() -> str:
 		processor: HtmlTemplateProcessor = HtmlTemplateProcessor("templates/header.html")
@@ -159,6 +171,10 @@ class CollectBotTemplate:
 	@_adorner.html_wrapper_attributes("div", {"class": "content"})
 	@_adorner.html_wrapper_attributes("ul", {})
 	def make_content_ul(s: str) -> str: return s
+
+	@_adorner.html_wrapper_attributes("div", {"class": "content"})
+	@_adorner.html_wrapper_attributes("ol", {})
+	def make_content_ol(s: str) -> str: return s
 
 	@_adorner.html_wrapper_attributes("div", {"class": "content"})
 	def make_content(s: str) -> str: return s
