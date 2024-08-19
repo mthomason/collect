@@ -125,7 +125,7 @@ class CollectBot:
 	def create_html(self, ebay_auctions: EBayAuctions) -> str:
 		_header: str = self._create_html_header()
 		_body: str = self._create_html_body(ebay_auctions=ebay_auctions)
-		_footer: str = self.create_html_footer()
+		_footer: str = self._create_html_footer()
 		return "".join((_header, _body, _footer))
 	
 	def _create_html_header(self) -> str:
@@ -171,7 +171,7 @@ class CollectBot:
 		bufbody.close()
 		return result
 
-	def create_html_footer(self) -> str:
+	def _create_html_footer(self) -> str:
 		return CollectBotTemplate.create_html_footer()
 
 	def create_sitemap(self, urls: list[str]):
@@ -224,7 +224,6 @@ class CollectBot:
 		FilePathTools.create_directory_if_not_exists("backup")
 		FilePathTools.backup_file(self.filepath_output_html, "backup")
 		logger.info(f"File {self.filename_output} moved to backup.")
-
 
 	def upload_to_s3(self):
 		"""Uploads the output file to S3."""
