@@ -141,7 +141,7 @@ class CollectBotTemplate:
 		return processor.get_content()
 	
 	def create_html_footer(template_folder: str) -> str:
-		p: str = path.join(template_folder, "style_inline.css")
+		p: str = path.join(template_folder, "footer.html")
 		with open(p, "r", encoding="utf-8") as file:
 			return file.read()
 		
@@ -157,6 +157,25 @@ class CollectBotTemplate:
 	@_adorner.md_adornment("*")
 	def md_make_italic(s: str) -> str: return s
 	
+	@_adorner.html_wrapper_attributes("div", {"id": "above-fold"})
+	@_adorner.html_wrapper_attributes("ol", {})
+	def make_above_headline(links: list[AuctionListing]) -> str:
+		buf: StringIO = StringIO()
+		for link in links:
+			attribs: dict = { "href": link.url, "target": "_blank" }
+			if link.ending_soon:
+				attribs["class"] = "a_ending"
+			title: str = CollectBotTemplate.strip_outter_tag(markdown.markdown(link.title))
+			link: str = CollectBotTemplate.html_wrapper(tag="a", content=title, attributes=attribs)
+			link = CollectBotTemplate.html_wrapper(tag="li", content=link)
+			buf.write(link)
+			buf.write("\n")
+
+		html_: str = buf.getvalue()
+		buf.close()
+		return html_
+
+
 	@_adorner.html_wrapper_attributes("div", {"id": "newspaper"})
 	def make_newspaper(s: str) -> str: return s
 

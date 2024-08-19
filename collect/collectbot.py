@@ -6,6 +6,7 @@ from io import StringIO
 import json
 import logging
 import markdown
+from random import randint
 
 from os import path
 
@@ -139,34 +140,50 @@ class CollectBot:
 	def _create_html_body(self, ebay_auctions: EBayAuctions) -> str:
 
 		topitem: dict[str, any] = ebay_auctions.most_watched()
-		auction_listing: AuctionListing = ebay_auctions.top_item_to_markdown(
+		exclude: list[str] = [topitem['itemId']]
+		topn: list[dict[str, any]] = ebay_auctions.top_n_most_watched(
+			randint(3, 5),
+			exclude=exclude
+		)
+
+		above_fold_links: list[AuctionListing] = []
+		for item in topn:
+			listing: AuctionListing = ebay_auctions.top_item_to_markdown(
+				item,
+				epn_category=self.epn_category_above_headline_link
+			)
+			above_fold_links.append(listing)
+			exclude.append(item['itemId'])
+
+		top_listing: AuctionListing = ebay_auctions.top_item_to_markdown(
 			topitem,
 			epn_category=self.epn_category_headline_link
 		)
 
 		img: str = CollectBotTemplate.html_wrapper_no_content(tag="img", attributes={
-			"src": auction_listing.image,
+			"src": top_listing.image,
 			"class": "th_img",
 			"alt": "Featured Auction"
 		})
 		img = CollectBotTemplate.html_wrapper(tag="p", content=img)
 
-		attribs: dict[str, str] = { "href": auction_listing.url, "target": "_blank" }
-		if auction_listing.ending_soon:
+		attribs: dict[str, str] = { "href": top_listing.url, "target": "_blank" }
+		if top_listing.ending_soon:
 			attribs["class"] = "th_ending"
 		else:
 			attribs["class"] = "th_"
 
-		title: str = CollectBotTemplate.strip_outter_tag(markdown.markdown(auction_listing.title))
+		title: str = CollectBotTemplate.strip_outter_tag(markdown.markdown(top_listing.title))
 		link: str = CollectBotTemplate.html_wrapper(tag="a", content=title, attributes=attribs)
 		link = CollectBotTemplate.html_wrapper(tag="p", content=link)
 
 		top_item_md: str = "\n".join((img, link))
 
 		bufbody: StringIO = StringIO()
+		bufbody.write(CollectBotTemplate.make_above_headline(above_fold_links))
 		bufbody.write(CollectBotTemplate.make_nameplate(self._app_name))
 		bufbody.write(CollectBotTemplate.make_lead_headline(top_item_md))
-		bufbody.write(CollectBotTemplate.auctions_to_html(ebay_auctions, exclude=[topitem['itemId']]))
+		bufbody.write(CollectBotTemplate.auctions_to_html(ebay_auctions, exclude=exclude))
 		buffer_html_news: StringIO = StringIO()
 		buffer_html_news.write(CollectBotTemplate.make_section_header("News"))
 		buffer_html_news.write(self.section_news_to_html())

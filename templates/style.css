@@ -47,7 +47,7 @@ ul, ol { font-size: 0.8em; }
 		grid-template-rows: auto;
 		gap: .2em;
 	}
-	#nameplate, #lead-headline, #auctions, #news { grid-column: 1; }
+	#nameplate, #lead-headline, #auctions, #news, #above-fold { grid-column: 1; }
 	.container {
 		grid-template-columns: 1fr;
 		gap: 4px;
@@ -67,7 +67,7 @@ ul, ol { font-size: 0.8em; }
 		grid-template-rows: auto;
 		gap: .8em;
 	}
-	#nameplate, #lead-headline { grid-column: 1 / span 3; }
+	#nameplate, #lead-headline, #above-fold { grid-column: 1 / span 3; }
 	#auctions { grid-column: 1 / span 2; }
 	#news { grid-column: 3 / span 1; }
 	#auctions .container, #news .container { padding: 0 4px; }

@@ -2,6 +2,7 @@
 # -*- coding: utf-8 -*-
 
 import logging
+
 from dotenv import load_dotenv
 
 from collect.logging_config import setup_logging
@@ -10,14 +11,14 @@ from collect.collectbot import CollectBot
 
 if __name__ == "__main__":
 
+	if not load_dotenv():
+		raise ValueError("Failed to load the .env file.")
+
 	collectbot: CollectBot = CollectBot()
 
 	setup_logging(collectbot.filepath_log)
 	logger = logging.getLogger(__name__)
-	logger.info('Application started')
-
-	if not load_dotenv():
-		raise ValueError("Failed to load the .env file.")
+	logger.info("Application started")
 
 	ebay_auctions: EBayAuctions = EBayAuctions(
 		filepath_cache_directory=collectbot.filepath_cache_directory,
