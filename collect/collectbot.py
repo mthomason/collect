@@ -27,7 +27,7 @@ class CollectBot:
 			_config_
 			{
 				"directory-out": "httpd/",
-				"directory-template": "template/",
+				"directory-template": "templates/",
 				"directory-cache": "cache/",
 				"directory-images: "cache/images/",
 				"output-file-name": "index.html"
@@ -75,6 +75,11 @@ class CollectBot:
 	def filename_output(self) -> str:
 		"""Returns the output file name."""
 		return self._config['output-file-name']
+
+	@property
+	def filepath_template_directory(self) -> str:
+		"""Returns the directory path for the templates."""
+		return self._config['directory-template']
 
 	@property
 	def filepath_output_directory(self) -> str:
@@ -129,7 +134,7 @@ class CollectBot:
 		return "".join((_header, _body, _footer))
 	
 	def _create_html_header(self) -> str:
-		return CollectBotTemplate.create_html_header()
+		return CollectBotTemplate.create_html_header(self.filepath_template_directory)
 	
 	def _create_html_body(self, ebay_auctions: EBayAuctions) -> str:
 
@@ -172,7 +177,7 @@ class CollectBot:
 		return result
 
 	def _create_html_footer(self) -> str:
-		return CollectBotTemplate.create_html_footer()
+		return CollectBotTemplate.create_html_footer(self.filepath_template_directory)
 
 	def create_sitemap(self, urls: list[str]):
 		filepath_output:str = path.join(self.filepath_output_directory, "sitemap.xml")

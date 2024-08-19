@@ -3,6 +3,7 @@
 
 from datetime import datetime, timezone
 from io import StringIO
+from os import path
 import logging
 import markdown
 
@@ -124,14 +125,24 @@ class CollectBotTemplate:
 		bufauct.close()
 		return result + "\n"
 
-	def create_html_header() -> str:
-		processor: HtmlTemplateProcessor = HtmlTemplateProcessor("templates/header.html")
-		processor.replace_from_file("style_inline", "templates/style_inline.css")
-		processor.replace_from_file("header_js", "templates/header_js.html")
+	def create_html_header(template_folder: str) -> str:
+		
+		processor: HtmlTemplateProcessor = HtmlTemplateProcessor(
+			template_path=path.join(template_folder, "header.html")
+		)
+		processor.replace_from_file(
+			"style_inline",
+			path.join(template_folder, "style_inline.css")
+		)
+		processor.replace_from_file(
+			"header_js",
+			path.join(template_folder, "header_js.html")
+		)
 		return processor.get_content()
 	
-	def create_html_footer() -> str:
-		with open('templates/footer.html', 'r', encoding="utf-8") as file:
+	def create_html_footer(template_folder: str) -> str:
+		p: str = path.join(template_folder, "style_inline.css")
+		with open(p, "r", encoding="utf-8") as file:
 			return file.read()
 		
 	def strip_outter_tag(s: str) -> str:
