@@ -71,4 +71,23 @@ class FilePathTools(object):
 		return temp_file_path
 
 if __name__ == "__main__":
-	raise ValueError("This script is not meant to be run directly.")
+	import sys
+
+	def _test():
+		print("Running tests...")
+		temp_dir = FilePathTools.get_temp_dir()
+		print(f"Temp directory: {temp_dir}")
+
+		temp_file_path = FilePathTools.get_unique_temp_file_path("test", ".txt")
+		print(f"Unique temp file path: {temp_file_path}")
+
+		stable_temp_file_path = FilePathTools.get_stable_temp_file_path("test", "unique_id", ".txt")
+		print(f"Stable temp file path: {stable_temp_file_path}")
+
+		FilePathTools.create_directory_if_not_exists("test_directory")
+		print("Tests complete.")
+
+	if len(sys.argv) > 1 and (sys.argv[1] == "-t" or sys.argv[1] == "--test"):
+		_test()
+	else:
+		raise ValueError("This script is not meant to be run directly.")
