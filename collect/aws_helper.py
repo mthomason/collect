@@ -20,13 +20,13 @@ class AwsS3Helper:
 	def __init__(self, bucket_name, region=None, ensure_bucket=True):
 		load_dotenv()
 
-		aws_akey: str | None = os.getenv('AWS_ACCESS_KEY_ID')
-		aws_sec: str | None = os.getenv('AWS_SECRET_ACCESS_KEY')
+		aws_akey: str | None = os.getenv("AWS_ACCESS_KEY_ID")
+		aws_sec: str | None = os.getenv("AWS_SECRET_ACCESS_KEY")
 		if aws_akey is None or aws_sec is None:
 			raise ValueError("AWS credentials not available.")
 
 		self.s3_client = boto3.client(
-			's3',
+			"s3",
 			aws_access_key_id=aws_akey,
 			aws_secret_access_key=aws_sec,
 			region_name=region
@@ -68,7 +68,7 @@ class AwsS3Helper:
 
 		content_type, _ = mimetypes.guess_type(file_path)
 		content_type = content_type or "application/octet-stream"
-		extraArgs = {'ContentType': content_type}
+		extraArgs = {"ContentType": content_type}
 
 		try:
 			self.s3_client.upload_file(file_path, self._bucket_name, object_name, ExtraArgs=extraArgs)
@@ -87,8 +87,8 @@ class AwsS3Helper:
 
 	def configure_bucket_for_website(self):
 		website_configuration = {
-			'ErrorDocument': {'Key': 'error.html'},
-			'IndexDocument': {'Suffix': 'index.html'},
+			"ErrorDocument": {"Key": "error.html"},
+			"IndexDocument": {"Suffix": "index.html"},
 		}
 
 		try:
