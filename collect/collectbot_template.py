@@ -67,7 +67,6 @@ class CollectBotTemplate:
 		for item in fetch_func():
 			attribs: dict = {
 				"href": item['link'],
-				"target": "_blank"
 			}
 			link: str = CollectBotTemplate.html_wrapper(tag="a", content=item['title'], attributes=attribs)
 			list_item: str = CollectBotTemplate.html_wrapper(tag="li", content=link)
@@ -100,9 +99,9 @@ class CollectBotTemplate:
 
 			html_: str = ""
 			for listing in auction_listings:
-				attribs: dict = { "href": listing.url, "target": "_blank" }
+				attribs: dict = { "href": listing.url }
 				if listing.ending_soon:
-					attribs["class"] = "a_ending"
+					attribs["class"] = "aending"
 				title: str = CollectBotTemplate.strip_outter_tag(markdown.markdown(listing.title))
 				link: str = CollectBotTemplate.html_wrapper(tag="a", content=title, attributes=attribs)
 				link = CollectBotTemplate.html_wrapper(tag="li", content=link)
@@ -162,9 +161,9 @@ class CollectBotTemplate:
 	def make_above_headline(links: list[AuctionListing]) -> str:
 		buf: StringIO = StringIO()
 		for link in links:
-			attribs: dict = { "href": link.url, "target": "_blank" }
+			attribs: dict = { "href": link.url }
 			if link.ending_soon:
-				attribs["class"] = "a_ending"
+				attribs["class"] = "aending"
 			title: str = CollectBotTemplate.strip_outter_tag(markdown.markdown(link.title))
 			link: str = CollectBotTemplate.html_wrapper(tag="a", content=title, attributes=attribs)
 			link = CollectBotTemplate.html_wrapper(tag="li", content=link)

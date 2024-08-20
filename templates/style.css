@@ -4,7 +4,7 @@ body {
 	background-color: #3a3a3a;
 	color: #E0E0E0;
 }
-.a_ending::before {
+.aending::before {
 	content: "⏰";
 	margin-right:5px;
 }
@@ -20,12 +20,12 @@ a {
 		background-color:#1f1f1f;
 		color: #cccccc;
 	}
-	a.a_ending, a.th_ending{color: tomato;}
+	a.aending, a.thending{color: tomato;}
 }
 
 */
 
-a.th_, a.th_ending {
+a.th, a.thending {
 	font-size: 2.2em; max-width: 60%;
 	text-align: center; margin-left: auto; margin-right: auto; display: block;
 }
@@ -56,8 +56,8 @@ ul, ol { font-size: 0.8em; }
 	h2 { font-size: 1.8em; }
 	h3 { font-size: 1.2em; }
 	section { padding-bottom: 4px; }
-	a.th_, a.th_ending { font-size: 1.8em; }
-	.th_img { max-height: 330px; }
+	a.th, a.thending { font-size: 1.8em; }
+	img.thi { max-height: 330px; }
 }
 
 @media (min-width: 768px) {

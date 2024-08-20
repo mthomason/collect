@@ -70,47 +70,52 @@ class CollectBot:
 	@property
 	def last_modified(self) -> datetime:
 		"""Returns the last modified date of the CollectBot."""
-		return datetime.fromisoformat(self._config['last-modified'])
+		return datetime.fromisoformat(self._config["last-modified"])
 
 	@property
 	def filename_output(self) -> str:
 		"""Returns the output file name."""
-		return self._config['output-file-name']
+		return self._config["output-file-name"]
 
 	@property
 	def filepath_template_directory(self) -> str:
 		"""Returns the directory path for the templates."""
-		return self._config['directory-template']
+		return self._config["directory-template"]
 
 	@property
 	def filepath_output_directory(self) -> str:
 		"""Returns the directory path for the output."""
-		return self._config['directory-out']
+		return self._config["directory-out"]
 
 	@property
 	def filepath_image_directory(self) -> str:
 		"""Returns the directory path for the images."""
-		return self._config['directory-images']
+		return self._config["directory-images"]
 
 	@property
 	def filepath_cache_directory(self) -> str:
 		"""Returns the directory path for the cache."""
-		return self._config['directory-cache']
+		return self._config["directory-cache"]
+	
+	@property
+	def filepath_config_directory(self) -> str:
+		"""Returns the directory path for the config."""
+		return self._config["directory-config"]
 	
 	@property
 	def epn_category_default(self) -> str:
 		"""Returns the default category for the eBay Partner Network."""
-		return self._epn_categories['default']
+		return self._epn_categories["default"]
 	
 	@property
 	def epn_category_above_headline_link(self) -> str:
 		"""Returns the category for the eBay Partner Network above the headline link."""
-		return self._epn_categories['above_headline_link']
+		return self._epn_categories["above_headline_link"]
 
 	@property
 	def epn_category_headline_link(self) -> str:
 		"""Returns the category for the eBay Partner Network for the headline link."""
-		return self._epn_categories['headline_link']
+		return self._epn_categories["headline_link"]
 	
 	def epn_category_id(self, category: str) -> str:
 		"""Returns the eBay Partner Network category ID for the given category."""
@@ -160,18 +165,19 @@ class CollectBot:
 			epn_category=self.epn_category_headline_link
 		)
 
-		img: str = CollectBotTemplate.html_wrapper_no_content(tag="img", attributes={
+		img: str = CollectBotTemplate.html_wrapper_no_content(tag="img",
+															  attributes={
 			"src": top_listing.image,
-			"class": "th_img",
+			"class": "thi",
 			"alt": "Featured Auction"
 		})
 		img = CollectBotTemplate.html_wrapper(tag="p", content=img)
 
-		attribs: dict[str, str] = { "href": top_listing.url, "target": "_blank" }
+		attribs: dict[str, str] = { "href": top_listing.url }
 		if top_listing.ending_soon:
-			attribs["class"] = "th_ending"
+			attribs["class"] = "thending"
 		else:
-			attribs["class"] = "th_"
+			attribs["class"] = "th"
 
 		title: str = CollectBotTemplate.strip_outter_tag(markdown.markdown(top_listing.title))
 		link: str = CollectBotTemplate.html_wrapper(tag="a", content=title, attributes=attribs)
@@ -208,17 +214,20 @@ class CollectBot:
 
 	def create_style_sheet(self):
 		"""Creates the style sheet for the CollectBot."""
-		with open("templates/style.css", "r") as file:
+		filepath_input: str = path.join(self.filepath_template_directory, "style.css")
+		with open(filepath_input, "r") as file:
 			style_content: str = HtmlTemplateProcessor.minify_css(file.read())
-			with open("httpd/style.css", "w") as file:
+			filepath_output: str = path.join(self.filepath_output_directory, "style.css")
+			with open(filepath_output, "w") as file:
 				file.write(style_content)
-				logger.info("File httpd/style.css created.")
+				logger.info(f"File {filepath_output} created.")
 
 	def update_edition(self):
 		"""Updates the edition of the CollectBot."""
 		self._config["edition"] = self._config["edition"] + 1
 		self._config["last-modified"] = datetime.now(timezone.utc).isoformat()
-		with open("config/config.json", "w") as file:
+		filepath_config: str = path.join(self.filepath_config_directory, "config.json")
+		with open(filepath_config, "w") as file:
 			json.dump(self._config, file, indent="\t")
 
 	def section_news(self, title: str, urls:list[dict[str, any]],

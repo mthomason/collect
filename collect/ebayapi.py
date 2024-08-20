@@ -254,29 +254,12 @@ class EBayAuctions:
 				now: datetime = datetime.now(tz=end_datetime.tzinfo)
 
 				if end_datetime > now:
-
 					auction_listing_simple: AuctionListingSimple = AuctionListingSimple(
 						title=title,
 						url=epn_url,
 						ending_soon=end_datetime - now < timedelta(days=1)
 					)
 					auction_listings.append(auction_listing_simple)
-
-					#if display_image and ctr == 0:
-					#	buffer.write("![image](")
-					#	buffer.write(item['galleryURL'])
-					#	buffer.write(")\n\n")
-
-					#buffer.write(" * [")
-					#buffer.write(title)
-					#buffer.write("](")
-					#buffer.write(epn_url)
-
-					#if end_datetime - now < timedelta(days=1):
-					#	buffer.write("){: .a_ending}\n")
-					#else:
-					#	buffer.write(")\n")
-
 					ctr += 1
 
 		return auction_listings
