@@ -176,26 +176,26 @@ class CollectBotTemplate:
 		return html_
 
 
-	@_adorner.html_wrapper_attributes("div", {"id": "newspaper"})
+	@_adorner.html_wrapper("main")
 	def make_newspaper(s: str) -> str: return s
 
-	@_adorner.html_wrapper_attributes("div", {"id": "nameplate"})
-	@_adorner.html_wrapper_attributes("h1", {"class": "h1"})
+	@_adorner.html_wrapper("header")
+	@_adorner.html_wrapper("h1")
 	def make_nameplate(s: str) -> str: return s
 
 	@_adorner.html_wrapper_attributes("div", {"id": "lead-headline"})
 	def make_lead_headline(s: str) -> str: return s
 
-	@_adorner.html_wrapper_attributes("div", {"id": "auctions"})
+	@_adorner.html_wrapper_attributes("article", {"id": "auctions"})
 	def make_auctions(s: str) -> str: return s
 
-	@_adorner.html_wrapper_attributes("div", {"id": "news"})
+	@_adorner.html_wrapper_attributes("article", {"id": "news"})
 	def make_news(s: str) -> str: return s
 
 	@_adorner.html_wrapper_attributes("div", {"class": "container"})
 	def make_container(s: str) -> str: return s
 
-	@_adorner.html_wrapper_attributes("div", {"class": "section"})
+	@_adorner.html_wrapper("section")
 	def make_section(s: str) -> str: return s
 
 	@_adorner.html_wrapper_attributes("div", {"class": "content"})
@@ -209,10 +209,10 @@ class CollectBotTemplate:
 	@_adorner.html_wrapper_attributes("div", {"class": "content"})
 	def make_content(s: str) -> str: return s
 
-	@_adorner.html_wrapper_attributes("div", {"class": "section-header"})
-	@_adorner.html_wrapper_attributes("h2", {"class": "h2"})
+	@_adorner.html_wrapper("header")
+	@_adorner.html_wrapper("h2")
 	def make_section_header(s: str) -> str: return s
 
-	@_adorner.html_wrapper_attributes("div", {"class": "item-header"})
-	@_adorner.html_wrapper_attributes("h3", {"class": "h3"})
+	@_adorner.html_wrapper("header")
+	@_adorner.html_wrapper("h3")
 	def make_item_header(s: str) -> str: return s

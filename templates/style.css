@@ -29,7 +29,7 @@ a.th_, a.th_ending {
 	font-size: 2.2em; max-width: 60%;
 	text-align: center; margin-left: auto; margin-right: auto; display: block;
 }
-.section { padding-bottom: 20px; }
+section { padding-bottom: 20px; }
 .content { display: flex; align-items: flex-start; }
 .content > p { text-align: center; margin-right: 20px; width: 150px }
 img { margin-right: 20px; }
@@ -41,38 +41,38 @@ ul, ol { font-size: 0.8em; }
 .container { display: grid; grid-template-columns: 1fr; gap: 20px; }
 
 @media (max-width: 767px) {
-	#newspaper {
+	body {
 		display: grid;
 		grid-template-columns: 1fr;
 		grid-template-rows: auto;
 		gap: .2em;
 	}
-	#nameplate, #lead-headline, #auctions, #news, #above-fold { grid-column: 1; }
+	header, #lead-headline, #auctions, #news, #above-fold { grid-column: 1; }
 	.container {
 		grid-template-columns: 1fr;
 		gap: 4px;
 	}
-	.h1 { text-align: center; font-size: 4.0em; }
-	.h2 { font-size: 1.8em; }
-	.h3 { font-size: 1.2em; }
-	.section { padding-bottom: 4px; }
+	h1 { text-align: center; font-size: 4.0em; }
+	h2 { font-size: 1.8em; }
+	h3 { font-size: 1.2em; }
+	section { padding-bottom: 4px; }
 	a.th_, a.th_ending { font-size: 1.8em; }
 	.th_img { max-height: 330px; }
 }
 
 @media (min-width: 768px) {
-	#newspaper {
+	body {
 		display: grid;
 		grid-template-columns: repeat(3, 1fr);
 		grid-template-rows: auto;
 		gap: .8em;
 	}
-	#nameplate, #lead-headline, #above-fold { grid-column: 1 / span 3; }
+	header, #lead-headline, #above-fold { grid-column: 1 / span 3; }
 	#auctions { grid-column: 1 / span 2; }
 	#news { grid-column: 3 / span 1; }
 	#auctions .container, #news .container { padding: 0 4px; }
 	#auctions .container { grid-template-columns: 1fr 1fr; }
 	#news .container { grid-template-columns: 1fr; }
-	.h2 { margin-left: 0.2em; }
-	.h3 { margin-left: 0.4em; }
+	h2 { margin-left: 0.2em; }
+	h3 { margin-left: 0.4em; }
 }
