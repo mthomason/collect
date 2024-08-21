@@ -5,7 +5,7 @@ import os
 import re
 import urllib.parse
 import json
-import markdown
+import logging
 
 from collect.apicache import APICache
 from collect.aws_helper import AwsS3Helper
@@ -14,10 +14,12 @@ from collect.promptchat import PromptPersonalityAuctioneer
 from datetime import datetime, timedelta
 from ebaysdk.finding import Connection as Finding
 from ebaysdk.exception import ConnectionError
-from io import StringIO
+from os import path
 from pathlib import Path
 from typing import NamedTuple
 from urllib.parse import urlencode, urlparse, urlunparse, parse_qsl, ParseResult
+
+logger = logging.getLogger(__name__)
 
 class AuctionListingSimple(NamedTuple):
 	title: str
@@ -32,9 +34,9 @@ class AuctionListing(NamedTuple):
 
 class eBayAPIHelper:
 	def __init__(self):
-		self.appid = os.getenv('EBAY_APPID')
-		self.certid = os.getenv('EBAY_CERTID')
-		self.devid = os.getenv('EBAY_DEVID')
+		self.appid = os.getenv("EBAY_APPID")
+		self.certid = os.getenv("EBAY_CERTID")
+		self.devid = os.getenv("EBAY_DEVID")
 
 		if not self.appid or not self.certid or not self.devid:
 			raise ValueError("Please set the EBAY_APPID, EBAY_CERTID, and EBAY_DEVID environment variables.")
@@ -90,20 +92,22 @@ class eBayAPIHelper:
 			return items
 
 		except ConnectionError as e:
-			print(f"Error: {e}")
-			print(e.response.dict())
+			logger.error(f"Error: {e}")
 			return []
 
 class EBayAuctions:
-	def __init__(self, filepath_cache_directory: str = "cache",
+	def __init__(self, filepath_cache_directory: str = "cache/",
 				 filepath_image_directory: str = "httpd/i",
+				 filepath_config_directory: str = "config/",
 				 refresh_time=8 * 60 * 60):
 		self._ebay_api: eBayAPIHelper = eBayAPIHelper()
 		self._api_cache: APICache = APICache(filepath_cache_directory)
 		self._image_dir: str = filepath_image_directory
 		self._refresh_time: int = refresh_time
+		self._cache_dir = filepath_cache_directory
 
-		with open("config/auctions-ebay.json", "r") as file:
+		auctions_list: str = path.join(filepath_config_directory, "auctions-ebay.json")
+		with open(auctions_list, "r") as file:
 			self._auctions: list[dict[str, any]] = json.load(file)
 
 	@property
@@ -126,16 +130,11 @@ class EBayAuctions:
 		)
 	
 	def top_n_most_watched(self, n: int, exclude: list[str] = []) -> list[dict[str, any]]:
-
-		# Flatten the list of items across all categories, excluding specified itemIds
 		items = [
 			item for cat in self._auctions for item in cat['items']
 			if item['itemId'] not in exclude
 		]
-
-		# Sort the items by watch count and get the top n
 		top_items = sorted(items, key=lambda x: int(x['listingInfo']['watchCount']), reverse=True)[:n]
-
 		return top_items
 	
 	def _search_results_to_html(self, items: list[dict], epn_category: str,
@@ -149,7 +148,8 @@ class EBayAuctions:
 		search_results: list[dict[str, any]] = self._api_cache.cached_api_call(self._ebay_api.search_top_watched_items, category_id, max_results)
 		return search_results
 
-	def top_item_to_markdown(self, item: dict[str, any], epn_category: str) -> AuctionListing:
+	def top_item_to_markdown(self, item: dict[str, any], epn_category: str,
+							 download_images: bool = True) -> AuctionListing:
 		if not item:
 			raise ValueError("Item not set.")
 
@@ -169,36 +169,51 @@ class EBayAuctions:
 		end_time_string: str = item['listingInfo']['endTime']
 		end_datetime: datetime = datetime.strptime(end_time_string, "%Y-%m-%dT%H:%M:%S.%fZ")
 		now: datetime = datetime.now(tz=end_datetime.tzinfo)
+		path_obj: Path | None = None
+		if download_images:
+			image_url = item['galleryURL']
+			image_url_large: str = ""
 
-		image_url = item['galleryURL']
-		image_url_large: str = ""
+			if image_url.endswith("s-l140.jpg"):
+				image_url = image_url.replace("s-l140.jpg", "s-l400.jpg")
 
-		if image_url.endswith("s-l140.jpg"):
-			image_url = image_url.replace("s-l140.jpg", "s-l400.jpg")
+			try:
+				image_cache = ImageCache(url=image_url, identifier=item['itemId'], cache_dir=self._image_dir)
+			except Exception as e:
+				image_cache = ImageCache(url=item['galleryURL'], identifier=item['itemId'], cache_dir=self._image_dir)
+				print(f"Error: {e}")
 
-		try:
-			image_cache = ImageCache(url=image_url, identifier=item['itemId'], cache_dir=self._image_dir)
-		except Exception as e:
-			image_cache = ImageCache(url=item['galleryURL'], identifier=item['itemId'], cache_dir=self._image_dir)
-			print(f"Error: {e}")
+			try:
+				if image_url.endswith("s-l400.jpg"):
+					image_url_large = image_url.replace("s-l400.jpg", "s-l1600.jpg")
+				image_cache_large = ImageCache(url=image_url_large, identifier=item['itemId'] + "_large", cache_dir=self._image_dir)
+				image_cache_large.download_image_if_needed()
+			except Exception as e:
+				logger.error(f"Error: {e}")
+				print(f"Error: {e}")
 
-		try:
-			if image_url.endswith("s-l400.jpg"):
-				image_url_large = image_url.replace("s-l400.jpg", "s-l1600.jpg")
-			image_cache_large = ImageCache(url=image_url_large, identifier=item['itemId'] + "_large", cache_dir=self._image_dir)
-			local_path: str = image_cache_large.get_image_path()
-			if image_cache_large._downloaded_image:
-				aws_helper: AwsS3Helper = AwsS3Helper(bucket_name='hobbyreport.net', region='us-east-1')
-				aws_helper.upload_images_with_tracking('httpd/i')
+			image_cache.download_image_if_needed()
+			local_path = image_cache.image_path
+			aws_helper: AwsS3Helper = AwsS3Helper(
+				bucket_name='hobbyreport.net',
+				region='us-east-1',
+				cache_dir=self._cache_dir,
+				ensure_bucket=False
+			)
+			aws_helper.upload_file_if_changed(
+				local_path,
+				f"i/{Path(local_path).name}"
+			)
 
-		except Exception as e:
-			print(f"Error: {e}")
+			path_obj = Path(local_path)
 
-		local_path = image_cache.get_image_path()
-		path_obj = Path(local_path)
-
+		image: str = ""
+		if path_obj is None:
+			image = ""
+		else:
+			image = str(Path('i') / path_obj.name)
 		auction_listing: AuctionListing = AuctionListing(
-			image=str(Path('i') / path_obj.name),
+			image=image,
 			title=title,
 			url=epn_url,
 			ending_soon=end_datetime - now < timedelta(days=1)
@@ -208,34 +223,34 @@ class EBayAuctions:
 	def _search_results_to_markdown(self, items: list[dict], epn_category: str,
 								exclude:list[str] = None) -> list[AuctionListingSimple]:
 		"""Converts a list of search results to markdown."""
-
 		auction_listings: list[AuctionListingSimple] = []
+		if not items or len(items) == 0:
+			return auction_listings
 
-		if items:
-			item: dict = None
-			item_id: str = ""
-			ctr: int = 0
+		item: dict = None
+		item_id: str = ""
+		ctr: int = 0
 
-			auctioneer: PromptPersonalityAuctioneer = PromptPersonalityAuctioneer()
-			for item in items:
-				item_id = item['itemId']
-				if exclude and item_id in exclude:
-					continue
+		auctioneer: PromptPersonalityAuctioneer = PromptPersonalityAuctioneer()
+		for item in items:
+			item_id = item['itemId']
+			if exclude and item_id in exclude:
+				continue
 
-				auctioneer.add_headline(id=item_id, headline=item['title'])
+			auctioneer.add_headline(id=item_id, headline=item['title'])
 
-			headlines_ids: dict[str, str] = {}
-			headlines_iterator = auctioneer.get_headlines()
+		headlines_ids: dict[str, str] = {}
+		headlines_iterator = auctioneer.get_headlines()
 
-			for headline in headlines_iterator:
-				headlines_ids[headline['identifier']] = headline['headline']
+		for headline in headlines_iterator:
+			headlines_ids[headline['identifier']] = headline['headline']
 
-			auctioneer.clear_headlines()
+		auctioneer.clear_headlines()
 
-			for item in items:
-				item_id = item['itemId']
-				if exclude and item_id in exclude:
-					continue
+		for item in items:
+			item_id = item['itemId']
+			if exclude and item_id in exclude:
+				continue
 				"""_summary_
 					Item has these properties, and more:
 					- ['title']: str
@@ -244,23 +259,23 @@ class EBayAuctions:
 					- ['sellingStatus']['currentPrice']['_currencyId']: str
 					- ['topRatedListing']: bool
 				"""
-				title = headlines_ids.get(item_id)
-				if not title:
-					title = item['title']
+			title = headlines_ids.get(item_id)
+			if not title:
+				title = item['title']
 
-				epn_url = eBayAPIHelper.generate_epn_link(item['viewItemURL'], epn_category)
-				end_time_string: str = item['listingInfo']['endTime']
-				end_datetime: datetime = datetime.strptime(end_time_string, "%Y-%m-%dT%H:%M:%S.%fZ")
-				now: datetime = datetime.now(tz=end_datetime.tzinfo)
+			epn_url = eBayAPIHelper.generate_epn_link(item['viewItemURL'], epn_category)
+			end_time_string: str = item['listingInfo']['endTime']
+			end_datetime: datetime = datetime.strptime(end_time_string, "%Y-%m-%dT%H:%M:%S.%fZ")
+			now: datetime = datetime.now(tz=end_datetime.tzinfo)
 
-				if end_datetime > now:
-					auction_listing_simple: AuctionListingSimple = AuctionListingSimple(
-						title=title,
-						url=epn_url,
-						ending_soon=end_datetime - now < timedelta(days=1)
-					)
-					auction_listings.append(auction_listing_simple)
-					ctr += 1
+			if end_datetime > now:
+				auction_listing_simple: AuctionListingSimple = AuctionListingSimple(
+					title=title,
+					url=epn_url,
+					ending_soon=end_datetime - now < timedelta(days=1)
+				)
+				auction_listings.append(auction_listing_simple)
+				ctr += 1
 
 		return auction_listings
 

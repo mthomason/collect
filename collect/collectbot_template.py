@@ -150,6 +150,17 @@ class CollectBotTemplate:
 		end = len(s)-s[::-1].find('<')-1
 		return s[start:end]
 
+	@_adorner.html_wrapper("p")
+	def make_featured_image(src: str, alt: str) -> str:
+		return CollectBotTemplate.html_wrapper_no_content(
+			tag="img",
+			attributes={
+				"src": src,
+				"class": "thi",
+				"alt": alt
+			}
+		)
+
 	@_adorner.md_adornment("**")
 	def md_make_bold(s: str) -> str: return s
 

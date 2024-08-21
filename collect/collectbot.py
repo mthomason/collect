@@ -117,15 +117,6 @@ class CollectBot:
 		"""Returns the category for the eBay Partner Network for the headline link."""
 		return self._epn_categories["headline_link"]
 	
-	def epn_category_id(self, category: str) -> str:
-		"""Returns the eBay Partner Network category ID for the given category."""
-		r: str = ""
-		if category in self._epn_categories:
-			r = self._epn_categories[category]
-		else:
-			r = self.epn_category_default
-		return r
-
 	def write_html_to_file(self, ebay_auctions: EBayAuctions):
 		"""Writes the HTML to the output file."""
 		s: str = self.create_html(ebay_auctions)
@@ -155,7 +146,8 @@ class CollectBot:
 		for item in topn:
 			listing: AuctionListing = ebay_auctions.top_item_to_markdown(
 				item,
-				epn_category=self.epn_category_above_headline_link
+				epn_category=self.epn_category_above_headline_link,
+				download_images=False
 			)
 			above_fold_links.append(listing)
 			exclude.append(item['itemId'])
@@ -165,13 +157,18 @@ class CollectBot:
 			epn_category=self.epn_category_headline_link
 		)
 
-		img: str = CollectBotTemplate.html_wrapper_no_content(tag="img",
-															  attributes={
-			"src": top_listing.image,
-			"class": "thi",
-			"alt": "Featured Auction"
-		})
-		img = CollectBotTemplate.html_wrapper(tag="p", content=img)
+		img: str = CollectBotTemplate.make_featured_image(
+			top_listing.image,
+			"Featured Auction"
+		)
+
+		#img: str = CollectBotTemplate.html_wrapper_no_content(tag="img",
+		#													  attributes={
+		#	"src": top_listing.image,
+		#	"class": "thi",
+		#	"alt": "Featured Auction"
+		#})
+		#img = CollectBotTemplate.html_wrapper(tag="p", content=img)
 
 		attribs: dict[str, str] = { "href": top_listing.url }
 		if top_listing.ending_soon:
@@ -201,6 +198,7 @@ class CollectBot:
 		result: str = CollectBotTemplate.make_newspaper(bufbody.getvalue())
 		buffer_html_news.close()
 		bufbody.close()
+		topn.clear()
 		return result
 
 	def _create_html_footer(self) -> str:
@@ -265,26 +263,47 @@ class CollectBot:
 		aws_helper: AwsS3Helper = AwsS3Helper(
 			bucket_name=self._config['aws-s3-bucket-name'],
 			region=self._config['aws-s3-region'],
-			ensure_bucket=bool(self._config['aws-s3-ensure-bucket'])
-			)
-		aws_helper.upload_images_with_tracking('httpd/i')
-		aws_helper.upload_file(file_path='httpd/index.html', object_name='index.html')
-		aws_helper.upload_file(file_path='httpd/sitemap.xml', object_name='sitemap.xml')
-		aws_helper.upload_file(file_path='httpd/style.css', object_name='style.css')
-		aws_helper.upload_file(file_path='httpd/favicon.ico', object_name='favicon.ico')
-		aws_helper.upload_file(file_path='httpd/robots.txt', object_name='robots.txt')
+			ensure_bucket=bool(self._config['aws-s3-ensure-bucket']),
+			cache_dir=self.filepath_cache_directory
+		)
+		#aws_helper.upload_images_with_tracking('httpd/i')
+		index_updated: bool = aws_helper.upload_file_if_changed(
+			file_path='httpd/index.html', object_name='index.html'
+		)
+		sitemap_updated: bool = aws_helper.upload_file_if_changed(
+			file_path='httpd/sitemap.xml', object_name='sitemap.xml'
+		)
+		style_updated: bool = aws_helper.upload_file_if_changed(
+			file_path='httpd/style.css', object_name='style.css'
+		)
+		favicon_updated: bool = aws_helper.upload_file_if_changed(
+			file_path='httpd/favicon.ico', object_name='favicon.ico'
+		)
+		robots_updated: bool = aws_helper.upload_file_if_changed(
+			file_path='httpd/robots.txt', object_name='robots.txt'
+		)
 
-		#Create an invalidation for the CloudFront distribution
-		cf: AwsCFHelper = AwsCFHelper()
+		if index_updated or sitemap_updated or style_updated or favicon_updated or robots_updated:
+			cf: AwsCFHelper = AwsCFHelper()
+			if index_updated:
+				invalidation_id = cf.create_invalidation(['/'])
+				logger.info(f"Invalidation ID: {invalidation_id} - /")
 
-		invalidation_id = cf.create_invalidation(['/'])
-		logger.info(f"Invalidation ID: {invalidation_id} - /")
+				invalidation_id = cf.create_invalidation(['/index.html'])
+				logger.info(f"Invalidation ID: {invalidation_id} - /index.html")
 
-		invalidation_id = cf.create_invalidation(['/index.html'])
-		logger.info(f"Invalidation ID: {invalidation_id} - /index.html")
+			if sitemap_updated:
+				invalidation_id = cf.create_invalidation(['/sitemap.xml'])
+				logger.info(f"Invalidation ID: {invalidation_id} - /sitemap.xml")
 
-		invalidation_id = cf.create_invalidation(['/sitemap.xml'])
-		logger.info(f"Invalidation ID: {invalidation_id} - /sitemap.xml")
+			if style_updated:
+				invalidation_id = cf.create_invalidation(['/style.css'])
+				logger.info(f"Invalidation ID: {invalidation_id}")
 
-		invalidation_id = cf.create_invalidation(['/style.css'])
-		logger.info(f"Invalidation ID: {invalidation_id}")
+			if favicon_updated:
+				invalidation_id = cf.create_invalidation(['/favicon.ico'])
+				logger.info(f"Invalidation ID: {invalidation_id}")
+		
+			if robots_updated:
+				invalidation_id = cf.create_invalidation(['/robots.txt'])
+				logger.info(f"Invalidation ID: {invalidation_id}")

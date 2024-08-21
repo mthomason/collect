@@ -14,18 +14,23 @@ from pathlib import Path
 from datetime import datetime, timezone, timedelta
 from botocore.exceptions import NoCredentialsError, ClientError
 
+from collect.file_upload_tracker import FileUploadTracker
+
 logger = logging.getLogger(__name__)
 
 class AwsS3Helper:
-	def __init__(self, bucket_name, region=None, ensure_bucket=True):
+	def __init__(self, bucket_name, region=None, ensure_bucket=True,
+				 cache_dir="cache/"):
 		load_dotenv()
+
+		self._upload_tracker: FileUploadTracker = FileUploadTracker(cache_dir)
 
 		aws_akey: str | None = os.getenv("AWS_ACCESS_KEY_ID")
 		aws_sec: str | None = os.getenv("AWS_SECRET_ACCESS_KEY")
 		if aws_akey is None or aws_sec is None:
 			raise ValueError("AWS credentials not available.")
 
-		self.s3_client = boto3.client(
+		self._s3_client = boto3.client(
 			"s3",
 			aws_access_key_id=aws_akey,
 			aws_secret_access_key=aws_sec,
@@ -42,7 +47,7 @@ class AwsS3Helper:
 
 	def _ensure_bucket(self):
 		try:
-			self.s3_client.head_bucket(Bucket=self._bucket_name)
+			self._s3_client.head_bucket(Bucket=self._bucket_name)
 			logger.info(f"Bucket {self._bucket_name} already exists.")
 		except ClientError:
 			self._create_bucket()
@@ -50,10 +55,10 @@ class AwsS3Helper:
 	def _create_bucket(self):
 		try:
 			if self._region is None:
-				self.s3_client.create_bucket(Bucket=self._bucket_name)
+				self._s3_client.create_bucket(Bucket=self._bucket_name)
 			else:
 				location = { 'LocationConstraint': self._region }
-				self.s3_client.create_bucket(
+				self._s3_client.create_bucket(
 					Bucket=self._bucket_name,
 					CreateBucketConfiguration=location
 				)
@@ -61,6 +66,15 @@ class AwsS3Helper:
 		except ClientError as e:
 			logger.error(f"Could not create bucket: {e}")
 			raise
+
+	def upload_file_if_changed(self, file_path, object_name=None) -> bool:
+		if self._upload_tracker.has_changed(file_path):
+			self.upload_file(file_path, object_name)
+			self._upload_tracker.mark_as_uploaded(file_path)
+			return True
+		else:
+			logger.info(f"Skipping {file_path} (no changes detected).")
+			return False
 
 	def upload_file(self, file_path, object_name=None):
 		if object_name is None:
@@ -71,7 +85,7 @@ class AwsS3Helper:
 		extraArgs = {"ContentType": content_type}
 
 		try:
-			self.s3_client.upload_file(file_path, self._bucket_name, object_name, ExtraArgs=extraArgs)
+			self._s3_client.upload_file(file_path, self._bucket_name, object_name, ExtraArgs=extraArgs)
 			logger.info(f"File {file_path} uploaded to {self._bucket_name}/{object_name}")
 		except FileNotFoundError:
 			logger.error(f"The file {file_path} was not found.")
@@ -83,7 +97,7 @@ class AwsS3Helper:
 			for file in files:
 				file_path = os.path.join(root, file)
 				relative_path = os.path.relpath(file_path, directory_path)
-				self.upload_file(file_path, object_name=relative_path)
+				self.upload_file_if_changed(file_path, object_name=relative_path)
 
 	def configure_bucket_for_website(self):
 		website_configuration = {
@@ -92,7 +106,7 @@ class AwsS3Helper:
 		}
 
 		try:
-			self.s3_client.put_bucket_website(
+			self._s3_client.put_bucket_website(
 				Bucket=self._bucket_name,
 				WebsiteConfiguration=website_configuration
 			)
@@ -136,7 +150,7 @@ class AwsS3Helper:
 						continue
 
 					# Upload the file and update the tracking data
-					self.upload_file(file_path=file_path, object_name=f"i/{object_name}")
+					self.upload_file_if_changed(file_path=file_path, object_name=f"i/{object_name}")
 					tracking_data[object_name] = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
 
 		# Save the updated tracking data
@@ -182,20 +196,19 @@ if __name__ == "__main__":
 	import sys
 	def _test():
 
-		aws_helper: AwsS3Helper = AwsS3Helper(bucket_name='hobbyreport.net', region='us-east-1')
+		aws_helper: AwsS3Helper = AwsS3Helper(
+			bucket_name='hobbyreport.net',
+			region='us-east-1',
+			cache_dir='cache/')
 		aws_helper.upload_images_with_tracking('httpd/i')
-		aws_helper.upload_file(file_path='httpd/index.html', object_name='index.html')
-		aws_helper.upload_file(file_path='httpd/style.css', object_name='style.css')
+		aws_helper.upload_file_if_changed(file_path='httpd/index.html', object_name='index.html')
+		aws_helper.upload_file_if_changed(file_path='httpd/style.css', object_name='style.css')
 		cf: AwsCFHelper = AwsCFHelper()
 		invalidation_id = cf.create_invalidation(['/index.html'])
 		invalidation_id = cf.create_invalidation(['/style.css'])
 		logger.info(f"Invalidation ID: {invalidation_id}")
-		exit(0)
 
-		s3: AwsS3Helper = AwsS3Helper(bucket_name="my-test-bucket")
-		s3.upload_file("test.txt")
-		s3.upload_directory("test_directory")
-		s3.configure_bucket_for_website()
+		exit(0)
 
 	if len(sys.argv) > 1 and (sys.argv[1] == "-t" or sys.argv[1] == "--test"):
 		_test()

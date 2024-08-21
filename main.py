@@ -23,6 +23,7 @@ if __name__ == "__main__":
 	ebay_auctions: EBayAuctions = EBayAuctions(
 		filepath_cache_directory=collectbot.filepath_cache_directory,
 		filepath_image_directory=collectbot.filepath_image_directory,
+		filepath_config=collectbot.filepath_config,
 		refresh_time=4 * 60 * 60
 	)
 	ebay_auctions.load_auctions()

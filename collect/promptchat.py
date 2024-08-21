@@ -5,10 +5,13 @@ import openai
 import requests
 import os
 import json
+import logging
 
 from collect.jsondatacache import JSONDataCache
 from io import StringIO
 from abc import ABC, abstractmethod
+
+logger = logging.getLogger(__name__)
 
 class PromptPersonality(ABC):
 	def __init__(self, name: str, context: str, prompts: list[str], functions: list[dict[str, any]] = []):
@@ -88,7 +91,9 @@ class PromptPersonalityAuctioneer(PromptPersonality):
 			buffer_prompt.write(self.prompts[0])
 			uncached_headlines: list[dict[str, str]] = []
 			for headline_id in uncached_headline_ids:
-				uncached_headlines.append(self.headlines[requested_headline_ids.index(headline_id)])
+				uncached_headlines.append(
+					self.headlines[requested_headline_ids.index(headline_id)]
+				)
 
 			assert len(uncached_headlines) == len(uncached_headline_ids), "No uncached headlines found."
 
@@ -96,7 +101,7 @@ class PromptPersonalityAuctioneer(PromptPersonality):
 			buffer_prompt.write(json.dumps(uncached_headlines, indent="\t"))
 			buffer_prompt.write("\n```\n\n")
 
-			print(f"Prompt: {buffer_prompt.getvalue()}")
+			logger.info(f"Prompt: {buffer_prompt.getvalue()}")
 
 			prompt_messages: list[dict[str, str]] = []
 			prompt_messages.append({"role": "system", "content": self.context})
@@ -120,16 +125,19 @@ class PromptPersonalityAuctioneer(PromptPersonality):
 				response = requests.post(url=url, headers=headers, json=json_data)
 
 				if response.status_code != 200:
-					print(f"Unable to generate response. Status Code: {response.status_code}. Response: {response.text}.")
+					logger.error(f"Unable to generate response. Status Code: {response.status_code}. Response: {response.text}.")
 					return iter([])
 
-				response_data_string: str = response.json()['choices'][0]['message']['function_call']['arguments']
-				response_data: dict[str, any] = json.loads(response_data_string)
+				response_s: str = response.json()['choices'][0]['message']['function_call']['arguments']
+				response_data: dict[str, any] = json.loads(response_s)
 
 				# Cache the headlines
 				cache_ctr: int = 0
 				for headline in response_data['headlines']:
-					self._cache.add_record_if_not_exists(title=headline['headline'], record_id=headline['identifier'])
+					self._cache.add_record_if_not_exists(
+						title=headline['headline'],
+						record_id=headline['identifier']
+						)
 					cache_ctr += 1
 
 				if cache_ctr > 0:
@@ -143,7 +151,7 @@ class PromptPersonalityAuctioneer(PromptPersonality):
 				return iter(response_data['headlines'])
 
 			except Exception as e:
-				print(f"Unable to generate response. Exception: {e}.")
+				logger.error(f"Unable to generate response. Exception: {e}.")
 				return iter([])
 			
 		else: # If all headlines are cached, return them
