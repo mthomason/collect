@@ -25,12 +25,14 @@ class AuctionListingSimple(NamedTuple):
 	title: str
 	url: str
 	ending_soon: bool
+	end_datetime: datetime
 
 class AuctionListing(NamedTuple):
 	title: str
 	url: str
 	ending_soon: bool
 	image: str
+	end_datetime: datetime
 
 class eBayAPIHelper:
 	def __init__(self):
@@ -129,6 +131,12 @@ class EBayAuctions:
 			key=lambda x: int(x['listingInfo']['watchCount'])
 		)
 	
+	def max_price(self) -> dict[str, any]:
+		return max(
+			[item for cat in self._auctions for item in cat['items']],
+			key=lambda x: float(x['sellingStatus']['currentPrice']['value'])
+		)
+	
 	def top_n_most_watched(self, n: int, exclude: list[str] = []) -> list[dict[str, any]]:
 		items = [
 			item for cat in self._auctions for item in cat['items']
@@ -136,6 +144,34 @@ class EBayAuctions:
 		]
 		top_items = sorted(items, key=lambda x: int(x['listingInfo']['watchCount']), reverse=True)[:n]
 		return top_items
+	
+	def top_n_sorted_auctions(self, n: int, exclude: list[str] = []) -> list[dict[str, any]]:
+		items = [
+			item for cat in self._auctions for item in cat['items']
+			if item['itemId'] not in exclude
+		]
+		max_watchers = max(
+			int(item['listingInfo']['watchCount']) for item in items
+		)
+		max_price = max(
+			float(item['sellingStatus']['currentPrice']['value']) for item in items
+		)
+
+		# Define the sort factor calculation
+		def calculate_sort_factor(item):
+			watchers = int(item['listingInfo']['watchCount'])
+			price = float(item['sellingStatus']['currentPrice']['value'])
+			normalized_watchers = watchers / max_watchers if max_watchers else 0
+			normalized_price = price / max_price if max_price else 0
+			weight_watchers = 0.7
+			weight_price = 0.3
+			return (weight_watchers * normalized_watchers) + (weight_price * normalized_price)
+
+		# Sort items by the calculated sort factor
+		sorted_items = sorted(items, key=calculate_sort_factor, reverse=True)[:n]
+
+		return sorted_items
+
 	
 	def _search_results_to_html(self, items: list[dict], epn_category: str,
 							exclude:list[str] = None) -> list[AuctionListingSimple]:
@@ -216,7 +252,8 @@ class EBayAuctions:
 			image=image,
 			title=title,
 			url=epn_url,
-			ending_soon=end_datetime - now < timedelta(days=1)
+			ending_soon=end_datetime - now < timedelta(days=1),
+			end_datetime=end_datetime
 		)
 		return auction_listing
 
@@ -272,7 +309,8 @@ class EBayAuctions:
 				auction_listing_simple: AuctionListingSimple = AuctionListingSimple(
 					title=title,
 					url=epn_url,
-					ending_soon=end_datetime - now < timedelta(days=1)
+					ending_soon=end_datetime - now < timedelta(days=1),
+					end_datetime=end_datetime
 				)
 				auction_listings.append(auction_listing_simple)
 				ctr += 1

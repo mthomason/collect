@@ -30,6 +30,9 @@ a.th, a.thending {
 	text-align: center; margin-left: auto; margin-right: auto; display: block;
 }
 section { padding-bottom: 20px; }
+p.content {
+	margin: 0;
+}
 .content { display: flex; align-items: flex-start; }
 .content > p { text-align: center; margin-right: 20px; width: 150px }
 img { margin-right: 20px; }
@@ -75,4 +78,18 @@ ul, ol { font-size: 0.8em; }
 	#news .container { grid-template-columns: 1fr; }
 	h2 { margin-left: 0.2em; }
 	h3 { margin-left: 0.4em; }
+}
+
+@media print {
+	body {
+		display:grid;
+		grid-template-columns: 1fr;
+		grid-template-rows: auto;
+		gap: .2em;
+	}
+	#above-fold > h2,
+	#lead-headline > h2 {
+		display: block;
+		text-align: center;
+	}
 }

@@ -23,21 +23,23 @@ class CollectBotTemplate:
 		pass
 
 	def create_sitemap(self, urls: list[str]) -> str:
-		buffer: StringIO = StringIO()
-		buffer.write("<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n")
-		buffer.write("<urlset xmlns=\"http://www.sitemaps.org/schemas/sitemap/0.9\">\n")
+		b: StringIO = StringIO()
+		b.write("<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n")
+		b.write("<urlset xmlns=\"http://www.sitemaps.org/schemas/sitemap/0.9\">\n")
 		for url in urls:
-			buffer.write("\t<url>\n")
-			buffer.write(f"\t\t<loc>{url}</loc>\n")
-			buffer.write("\t\t<lastmod>")
-			buffer.write(datetime.now().astimezone(timezone.utc).isoformat(timespec='minutes'))
-			buffer.write("</lastmod>\n")
-			buffer.write("\t\t<changefreq>hourly</changefreq>\n")
-			buffer.write("\t\t<priority>1.0</priority>\n")
-			buffer.write("\t</url>\n")
+			b.write("\t<url>\n")
+			b.write(f"\t\t<loc>{url}</loc>\n")
+			b.write("\t\t<lastmod>")
+			b.write(datetime.now().astimezone(timezone.utc).isoformat(timespec='minutes'))
+			b.write("</lastmod>\n")
+			b.write("\t\t<changefreq>hourly</changefreq>\n")
+			b.write("\t\t<priority>1.0</priority>\n")
+			b.write("\t</url>\n")
 
-		buffer.write("</urlset>\n")
-		return buffer.getvalue()
+		b.write("</urlset>\n")
+		r: str = b.getvalue()
+		b.close()
+		return r
 	
 	def html_wrapper_no_content(tag: str, attributes: dict = None) -> str:
 		assert tag, "tag is required."
@@ -108,9 +110,11 @@ class CollectBotTemplate:
 				html_ += link + "\n"
 
 			bufsec.write("\n")
-			bufsec.write(CollectBotTemplate.make_content_ol(html_))
+			content_ol: str = CollectBotTemplate.make_content_ol(html_)
+			bufsec.write(content_ol)
 			bufsec.write("\n")
-			bufsecs.write(CollectBotTemplate.make_section(bufsec.getvalue()))
+			section: str = CollectBotTemplate.make_section(bufsec.getvalue())
+			bufsecs.write(section)
 			bufsecs.write("\n")
 			bufsec.seek(0)
 			bufsec.truncate(0)
@@ -166,10 +170,12 @@ class CollectBotTemplate:
 
 	@_adorner.md_adornment("*")
 	def md_make_italic(s: str) -> str: return s
-	
-	@_adorner.html_wrapper_attributes("div", {"id": "above-fold"})
+
+	@_adorner.html_wrapper_attributes("article", {"id": "hrpt"})
+	def make_newspaper(s: str) -> str: return s
+
 	@_adorner.html_wrapper_attributes("ol", {})
-	def make_above_headline(links: list[AuctionListing]) -> str:
+	def make_above_fold_links(links: list[AuctionListing]) -> str:
 		buf: StringIO = StringIO()
 		for link in links:
 			attribs: dict = { "href": link.url }
@@ -185,16 +191,27 @@ class CollectBotTemplate:
 		buf.close()
 		return html_
 
+	@_adorner.html_wrapper_attributes("section", {"id": "above-fold"})
+	def make_above_fold(s: str, links: list[AuctionListing]) -> str:
+		buf: StringIO = StringIO()
+		buf.write(CollectBotTemplate.make_section_header(s))
+		buf.write("\n")
+		buf.write(CollectBotTemplate.make_above_fold_links(links))
+		html_: str = buf.getvalue()
+		buf.close()
+		return html_
+	
+	def make_lead_headline_body(s: str) -> str: return s
 
-	@_adorner.html_wrapper("main")
-	def make_newspaper(s: str) -> str: return s
-
-	@_adorner.html_wrapper("header")
-	@_adorner.html_wrapper("h1")
-	def make_nameplate(s: str) -> str: return s
-
-	@_adorner.html_wrapper_attributes("div", {"id": "lead-headline"})
-	def make_lead_headline(s: str) -> str: return s
+	@_adorner.html_wrapper_attributes("section", {"id": "lead-headline"})
+	def make_lead_headline(s: str, body: str) -> str:
+		buf: StringIO = StringIO()
+		buf.write(CollectBotTemplate.make_section_header(s))
+		buf.write("\n")
+		buf.write(CollectBotTemplate.make_lead_headline_body(body))
+		html_: str = buf.getvalue()
+		buf.close()
+		return html_
 
 	@_adorner.html_wrapper_attributes("article", {"id": "auctions"})
 	def make_auctions(s: str) -> str: return s
@@ -208,21 +225,18 @@ class CollectBotTemplate:
 	@_adorner.html_wrapper("section")
 	def make_section(s: str) -> str: return s
 
-	@_adorner.html_wrapper_attributes("div", {"class": "content"})
 	@_adorner.html_wrapper_attributes("ul", {})
 	def make_content_ul(s: str) -> str: return s
 
-	@_adorner.html_wrapper_attributes("div", {"class": "content"})
 	@_adorner.html_wrapper_attributes("ol", {})
 	def make_content_ol(s: str) -> str: return s
 
-	@_adorner.html_wrapper_attributes("div", {"class": "content"})
-	def make_content(s: str) -> str: return s
-
 	@_adorner.html_wrapper("header")
+	@_adorner.html_wrapper("h1")
+	def make_nameplate(s: str) -> str: return s
+
 	@_adorner.html_wrapper("h2")
 	def make_section_header(s: str) -> str: return s
 
-	@_adorner.html_wrapper("header")
 	@_adorner.html_wrapper("h3")
 	def make_item_header(s: str) -> str: return s

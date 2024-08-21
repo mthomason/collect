@@ -135,12 +135,15 @@ class CollectBot:
 	
 	def _create_html_body(self, ebay_auctions: EBayAuctions) -> str:
 
-		topitem: dict[str, any] = ebay_auctions.most_watched()
-		exclude: list[str] = [topitem['itemId']]
-		topn: list[dict[str, any]] = ebay_auctions.top_n_most_watched(
-			randint(3, 5),
+		exclude: list[str] = []
+
+		topn: list[dict[str, any]] = ebay_auctions.top_n_sorted_auctions(
+			randint(3, 5) + 1,
 			exclude=exclude
 		)
+
+		topitem: dict[str, any] = topn.pop(0)
+		exclude.append(topitem['itemId'])
 
 		above_fold_links: list[AuctionListing] = []
 		for item in topn:
@@ -162,31 +165,35 @@ class CollectBot:
 			"Featured Auction"
 		)
 
-		#img: str = CollectBotTemplate.html_wrapper_no_content(tag="img",
-		#													  attributes={
-		#	"src": top_listing.image,
-		#	"class": "thi",
-		#	"alt": "Featured Auction"
-		#})
-		#img = CollectBotTemplate.html_wrapper(tag="p", content=img)
-
 		attribs: dict[str, str] = { "href": top_listing.url }
 		if top_listing.ending_soon:
 			attribs["class"] = "thending"
 		else:
 			attribs["class"] = "th"
 
-		title: str = CollectBotTemplate.strip_outter_tag(markdown.markdown(top_listing.title))
-		link: str = CollectBotTemplate.html_wrapper(tag="a", content=title, attributes=attribs)
+		title: str = CollectBotTemplate.strip_outter_tag(
+			markdown.markdown(top_listing.title)
+		)
+		link: str = CollectBotTemplate.html_wrapper(
+			tag="a", content=title, attributes=attribs
+		)
 		link = CollectBotTemplate.html_wrapper(tag="p", content=link)
 
 		top_item_md: str = "\n".join((img, link))
 
 		bufbody: StringIO = StringIO()
-		bufbody.write(CollectBotTemplate.make_above_headline(above_fold_links))
+		bufbody.write(CollectBotTemplate.make_above_fold(
+			self._config["display-above-the-fold-header"],
+			above_fold_links)
+		)
 		bufbody.write(CollectBotTemplate.make_nameplate(self._app_name))
-		bufbody.write(CollectBotTemplate.make_lead_headline(top_item_md))
-		auctions: str = CollectBotTemplate.auctions_to_html(ebay_auctions, exclude=exclude) 
+		bufbody.write(CollectBotTemplate.make_lead_headline(
+			self._config["display-lead-headline-header"],
+			body=top_item_md)
+		)
+		auctions: str = CollectBotTemplate.auctions_to_html(
+			ebay_auctions, exclude=exclude
+		) 
 
 		buffer_html_news: StringIO = StringIO()
 		buffer_html_news.write(CollectBotTemplate.make_section_header("News"))
@@ -242,9 +249,10 @@ class CollectBot:
 		return html_section
 	
 	def section_news_to_html(self) -> str:
+		p: str = path.join(self.filepath_config_directory, "rss-feeds.json")
 		buff: StringIO = StringIO()
-		with open("config/rss-feeds.json", "r") as file:
-			rss_feeds = json.load(file)
+		with open(p, "r") as f:
+			rss_feeds = json.load(f)
 			section_html: str = ""
 			for feed in rss_feeds:
 				section_html = self.section_news(**feed)
@@ -266,7 +274,12 @@ class CollectBot:
 			ensure_bucket=bool(self._config['aws-s3-ensure-bucket']),
 			cache_dir=self.filepath_cache_directory
 		)
-		#aws_helper.upload_images_with_tracking('httpd/i')
+
+		img_filepath: str = path.join(self.filepath_template_directory, "og-image.jpeg")
+		og_image_updated: bool = aws_helper.upload_file_if_changed(
+			file_path=img_filepath, object_name="og-image.jpeg"
+		)
+
 		index_updated: bool = aws_helper.upload_file_if_changed(
 			file_path='httpd/index.html', object_name='index.html'
 		)
