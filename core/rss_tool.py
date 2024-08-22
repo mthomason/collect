@@ -7,7 +7,7 @@ import os
 import xml.etree.ElementTree as ElementTree
 
 from os import path
-from collect.fetch_bot import FetchBot
+from core.fetch_bot import FetchBot
 from datetime import datetime, timedelta
 from requests.models import Response
 from typing import Generator

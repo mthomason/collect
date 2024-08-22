@@ -5,7 +5,7 @@ import os
 import hashlib
 import json
 from pathlib import Path
-from typing import Dict, Optional
+from typing import Dict
 
 class FileUploadTracker:
 	def __init__(self, cache_dir: str):
@@ -62,10 +62,8 @@ class FileUploadTracker:
 
 	def cleanup_cache(self):
 		"""Optional: Clean up the cache file if needed to free up space."""
-		# Implement cleanup logic if necessary, such as removing old entries.
-		pass
+		raise NotImplementedError("Cleanup logic is not implemented.")
 
-# Example Usage
 if __name__ == "__main__":
 	import sys
 

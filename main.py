@@ -5,7 +5,7 @@ import logging
 
 from dotenv import load_dotenv
 
-from collect.logging_config import setup_logging
+from core.logging_config import setup_logging
 from collect.ebayapi import EBayAuctions
 from collect.collectbot import CollectBot
 
@@ -24,7 +24,8 @@ if __name__ == "__main__":
 		filepath_cache_directory=collectbot.filepath_cache_directory,
 		filepath_image_directory=collectbot.filepath_image_directory,
 		filepath_config_directory=collectbot.filepath_config_directory,
-		refresh_time=4 * 60 * 60
+		refresh_time=4 * 60 * 60,
+		user_agent=collectbot.user_agent
 	)
 	ebay_auctions.load_auctions()
 

@@ -14,8 +14,8 @@ from collect.aws_helper import AwsCFHelper, AwsS3Helper
 from collect.collectbot_template import CollectBotTemplate
 from collect.ebayapi import EBayAuctions, AuctionListing
 from collect.filepathtools import FilePathTools
-from collect.html_template_processor import HtmlTemplateProcessor
-from collect.rss_tool import RssTool
+from core.html_template_processor import HtmlTemplateProcessor
+from core.rss_tool import RssTool
 
 logger = logging.getLogger(__name__)
 

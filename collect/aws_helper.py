@@ -14,7 +14,7 @@ from pathlib import Path
 from datetime import datetime, timezone, timedelta
 from botocore.exceptions import NoCredentialsError, ClientError
 
-from collect.file_upload_tracker import FileUploadTracker
+from core.file_upload_tracker import FileUploadTracker
 
 logger = logging.getLogger(__name__)
 

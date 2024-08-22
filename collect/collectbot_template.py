@@ -9,8 +9,8 @@ import markdown
 
 from typing import Generator, Callable, Final
 from collect.ebayapi import EBayAuctions
-from collect.html_template_processor import HtmlTemplateProcessor
-from collect.string_adorner import StringAdorner
+from core.html_template_processor import HtmlTemplateProcessor
+from core.string_adorner import StringAdorner
 from collect.ebayapi import AuctionListing, AuctionListingSimple
 
 logger = logging.getLogger(__name__)

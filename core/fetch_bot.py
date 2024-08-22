@@ -27,6 +27,7 @@ class FetchBot:
 		self._request: Request = Request()
 		self._response: Response | None = None
 		
+		# See warning at https://docs.python.org/3/library/urllib.request.html
 		if str.lower(platform.system()) == "darwin":
 			os.environ["no_proxy"] = "*"
 	
@@ -34,7 +35,7 @@ class FetchBot:
 	def request_headers(self) -> dict[str, str]:
 		"""Return the headers for the request."""
 		return {
-			"User-Agent": self._user_agent
+				"User-Agent": self._user_agent
 			}
 
 	def get(self, url: str | None = None) -> Response:

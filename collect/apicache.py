@@ -8,7 +8,11 @@ import time
 from typing import Callable
 
 class APICache:
-	def __init__(self, cache_dir: str = "cache", cache_file: str = "api_cache.json", cache_ttl: int = 5 * 60 * 60):
+	def __init__(
+			self, cache_dir: str = "cache",
+			cache_file: str = "api_cache.json",
+			cache_ttl: int = 5 * 60 * 60
+		):
 		self.cache_dir = cache_dir
 		self.cache_file = cache_file
 		self.cache_ttl = cache_ttl
@@ -23,7 +27,7 @@ class APICache:
 		cache_file_path: str = self.cache_file_path()
 		if os.path.exists(cache_file_path):
 			with open(cache_file_path, 'r') as f:
-				cache_data: list[str, dict] = json.load(f)
+				cache_data: dict[str, any] = json.load(f)
 				if time.time() - cache_data['timestamp'] < self.cache_ttl:
 					return cache_data['data']
 		return []

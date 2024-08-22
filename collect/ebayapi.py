@@ -9,7 +9,7 @@ import logging
 
 from collect.apicache import APICache
 from collect.aws_helper import AwsS3Helper
-from collect.imagecache import ImageCache
+from core.imagecache import ImageCache
 from collect.promptchat import PromptPersonalityAuctioneer
 from datetime import datetime, timedelta
 from ebaysdk.finding import Connection as Finding
@@ -101,12 +101,14 @@ class EBayAuctions:
 	def __init__(self, filepath_cache_directory: str = "cache/",
 				 filepath_image_directory: str = "httpd/i",
 				 filepath_config_directory: str = "config/",
-				 refresh_time=8 * 60 * 60):
+				 refresh_time: int=8 * 60 * 60,
+				 user_agent: str | None = None):
 		self._ebay_api: eBayAPIHelper = eBayAPIHelper()
 		self._api_cache: APICache = APICache(filepath_cache_directory)
 		self._image_dir: str = filepath_image_directory
 		self._refresh_time: int = refresh_time
 		self._cache_dir = filepath_cache_directory
+		self._user_agent: str | None = user_agent
 
 		auctions_list: str = path.join(filepath_config_directory, "auctions-ebay.json")
 		with open(auctions_list, "r") as file:
@@ -214,27 +216,39 @@ class EBayAuctions:
 				image_url = image_url.replace("s-l140.jpg", "s-l400.jpg")
 
 			try:
-				image_cache = ImageCache(url=image_url, identifier=item['itemId'], cache_dir=self._image_dir)
+				image_cache = ImageCache(
+					url=image_url, identifier=item['itemId'],
+					cache_dir=self._image_dir, user_agent=self._user_agent
+				)
 			except Exception as e:
-				image_cache = ImageCache(url=item['galleryURL'], identifier=item['itemId'], cache_dir=self._image_dir)
-				print(f"Error: {e}")
+				image_cache = ImageCache(
+					url=item['galleryURL'],
+					identifier=item['itemId'],
+					cache_dir=self._image_dir,
+					user_agent=self._user_agent
+				)
+				logger.error(f"Error: {e}")
 
 			try:
 				if image_url.endswith("s-l400.jpg"):
 					image_url_large = image_url.replace("s-l400.jpg", "s-l1600.jpg")
-				image_cache_large = ImageCache(url=image_url_large, identifier=item['itemId'] + "_large", cache_dir=self._image_dir)
+				image_cache_large = ImageCache(
+					url=image_url_large,
+					identifier=item['itemId'] + "_large",
+					cache_dir=self._image_dir,
+					user_agent=self._user_agent
+				)
 				image_cache_large.download_image_if_needed()
 			except Exception as e:
 				logger.error(f"Error: {e}")
-				print(f"Error: {e}")
 
 			image_cache.download_image_if_needed()
 			local_path = image_cache.image_path
 			aws_helper: AwsS3Helper = AwsS3Helper(
 				bucket_name='hobbyreport.net',
 				region='us-east-1',
-				cache_dir=self._cache_dir,
-				ensure_bucket=False
+				ensure_bucket=False,
+				cache_dir=self._cache_dir
 			)
 			aws_helper.upload_file_if_changed(
 				local_path,
