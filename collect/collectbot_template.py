@@ -171,7 +171,7 @@ class CollectBotTemplate:
 	@_adorner.md_adornment("*")
 	def md_make_italic(s: str) -> str: return s
 
-	@_adorner.html_wrapper_attributes("article", {"id": "hrpt"})
+	@_adorner.html_wrapper_attributes("main", {"id": "hrpt"})
 	def make_newspaper(s: str) -> str: return s
 
 	@_adorner.html_wrapper_attributes("ol", {})
@@ -191,7 +191,7 @@ class CollectBotTemplate:
 		buf.close()
 		return html_
 
-	@_adorner.html_wrapper_attributes("section", {"id": "above-fold"})
+	@_adorner.html_wrapper_attributes("aside", {"id": "above-fold"})
 	def make_above_fold(s: str, links: list[AuctionListing]) -> str:
 		buf: StringIO = StringIO()
 		buf.write(CollectBotTemplate.make_section_header(s))
