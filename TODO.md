@@ -2,7 +2,7 @@
 
 * [x] Implement API to transfer to S3 static host
 * [ ] Add links to hobby websites
-* [ ] Save the links to releases and create a cache of about twenty of them
+* [x] Save the links to releases and create a cache of about twenty of them
 * [ ] Create bot to run the script every few hours
 * [ ] Set link until date when cache is created
 * [ ] Output site last updated date

@@ -58,13 +58,6 @@ class PromptPersonalityAuctioneer(PromptPersonality):
 	def clear_headlines(self) -> None:
 		self.headlines.clear()
 
-	def additional_prompt(self) -> str:
-		buffer: StringIO = StringIO()
-		buffer.write("\n```json\n")
-		buffer.write(json.dumps(self.headlines, indent="\t"))
-		buffer.write("```\n\n")
-		return buffer.getvalue()
-
 	def generate_response(self, prompt: str) -> str:
 		return f"{self.name}: {prompt}"
 
