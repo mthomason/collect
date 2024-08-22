@@ -119,7 +119,7 @@ class CollectBotTemplate:
 			bufsec.seek(0)
 			bufsec.truncate(0)
 			bufsec.close()
-			
+
 		bufauct.write(CollectBotTemplate.make_container(bufsecs.getvalue()))
 		bufauct.write("\n")
 		result: str = CollectBotTemplate.make_auctions(bufauct.getvalue())

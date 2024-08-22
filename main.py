@@ -31,6 +31,7 @@ if __name__ == "__main__":
 	collectbot.write_html_to_file(ebay_auctions=ebay_auctions)
 	collectbot.create_sitemap(["https://hobbyreport.net"])
 	collectbot.create_style_sheet()
+	#collectbot.create_js()
 	collectbot.backup_files()
 	collectbot.update_edition()
 	collectbot.upload_to_s3()

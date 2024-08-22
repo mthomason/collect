@@ -14,12 +14,15 @@ from typing import Generator
 from xml.etree.ElementTree import Element
 
 class RssTool:
-	def __init__(self, urls: list[str] | None = None, url: str | None = None,
+	def __init__(self, user_agent: str, urls: list[str] | None = None,
+				 url: str | None = None,
 				 cache_duration: int = 28800,
 				 max_results: int = 10, cache_directory: str ="cache",
 				 cache_file: str = "rss_cache.json",
 				 max_cache_size: int = 20):
 
+		assert user_agent, "user_agent is required."
+		self._user_agent = user_agent
 		if not url and not urls:
 			raise ValueError("Either url or urls must be provided.")
 		elif url:
@@ -112,7 +115,12 @@ if __name__ == "__main__":
 	def _test() -> None:
 		url = "https://www.beckett.com/news/feed/"
 		cache_file = "becket_rss.json"
-		rss_tool = RssTool(url, cache_duration=28800, cache_directory="cache/", cache_file=cache_file)
+		rss_tool = RssTool(
+			"TestBot/1.0",
+			url,
+			cache_duration=28800,
+			cache_directory="cache/",
+			cache_file=cache_file)
 		for item in rss_tool.fetch():
 			print(item)
 

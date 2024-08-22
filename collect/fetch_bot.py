@@ -14,12 +14,14 @@ from urllib.parse import urlparse, ParseResult
 from urllib.robotparser import RobotFileParser
 
 class FetchBot:
-	_REQUEST_BOT_USER_AGENT: Final[str] = "HobbyBot/1.0"
-	_REQUEST_BOT_HEADERS: dict[str, str] = {
-		"User-Agent": _REQUEST_BOT_USER_AGENT
-	}
 
-	def __init__(self, url: str, cache_directory: str | None = None):
+	def __init__(
+			self,
+			url: str,
+			cache_directory: str | None = None,
+			user_agent: str | None = "HobbyBot/1.0"
+		):
+		self._user_agent = user_agent
 		self._url: str = url
 		self._cache_directory: str = cache_directory or "cache"
 		self._request: Request = Request()
@@ -28,12 +30,19 @@ class FetchBot:
 		if str.lower(platform.system()) == "darwin":
 			os.environ["no_proxy"] = "*"
 	
+	@property
+	def request_headers(self) -> dict[str, str]:
+		"""Return the headers for the request."""
+		return {
+			"User-Agent": self._user_agent
+			}
+
 	def get(self, url: str | None = None) -> Response:
 		"""Send a GET request to the given URL."""
 		self._request.method = "GET"
 		_request_url: str = url or self._url
 		self._request.url = _request_url
-		self._request.headers = FetchBot._REQUEST_BOT_HEADERS
+		self._request.headers = self.request_headers
 		self._response = requests.get(self._request.url, headers=self._request.headers)
 		return self._response
 	
@@ -55,6 +64,7 @@ class FetchBot:
 		"""Fetch data from the given URL."""
 		return self.get()
 	
+	@property
 	def robots_url(self) -> str:
 		"""Return the URL for the robots.txt file."""
 		parsed_url: ParseResult = urlparse(self._url)
@@ -76,8 +86,6 @@ class FetchBot:
 		False if disallowed.
 		"""
 
-		robots_url: str = self.robots_url()
-
 		cache_file_path: str = self.cache_file_path()
 		cache_exist: bool = os.path.exists(cache_file_path)
 		cache_is_valid: bool = False
@@ -94,22 +102,23 @@ class FetchBot:
 			robots_txt: str = cache_data["robots_txt"]
 			robot_parser: RobotFileParser = RobotFileParser()
 			robot_parser.parse(robots_txt.splitlines())
-			if robot_parser.can_fetch(FetchBot._REQUEST_BOT_USER_AGENT, self._url):
+			if robot_parser.can_fetch(self._user_agent, self._url):
 				allowed_query = True
 			else:
 				allowed_query = False
 		else:
 			# Cache is old or doesn't exist.  Fetch the robots.txt file.
-			response: Response = self.get(robots_url)
+			response: Response = self.get(self.robots_url)
 			if response.status_code == 200:
 				robots_txt = response.text
 				robot_parser: RobotFileParser = RobotFileParser()
 				robot_parser.parse(robots_txt.splitlines())
-				if robot_parser.can_fetch(FetchBot._REQUEST_BOT_USER_AGENT, self._url):
+				if robot_parser.can_fetch(self._user_agent,
+							  			  self._url):
 					allowed_query = True
 				else:
 					allowed_query = False
-				self.cache_robots_txt(robots_txt, robots_url=robots_url,
+				self.cache_robots_txt(robots_txt, robots_url=self.robots_url,
 						  cache_file_path=cache_file_path)
 			else:
 				# No robots.txt file found.  Assume it's allowed.

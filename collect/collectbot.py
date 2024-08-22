@@ -51,6 +51,15 @@ class CollectBot:
 		)
 
 	@property
+	def user_agent(self) -> str:
+		"""Returns the user agent for the CollectBot."""
+		user_agent: tuple[str, str] = (
+			self._config["user-agent-name"],
+			self._config["user-agent-version"]
+		)
+		return "/".join(user_agent)
+
+	@property
 	def filepath_output_html(self) -> str:
 		return path.join(self.filepath_output_directory, self.filename_output)
 
@@ -226,6 +235,16 @@ class CollectBot:
 			with open(filepath_output, "w") as file:
 				file.write(style_content)
 				logger.info(f"File {filepath_output} created.")
+	
+	def create_js(self):
+		"""Creates the JavaScript file for the CollectBot."""
+		filepath_input: str = path.join(self.filepath_template_directory, "display.js")
+		with open(filepath_input, "r") as file:
+			js_content: str = HtmlTemplateProcessor.minify_js(file.read())
+			filepath_output: str = path.join(self.filepath_output_directory, "display.js")
+			with open(filepath_output, "w") as file:
+				file.write(js_content)
+				logger.info(f"File {filepath_output} created.")
 
 	def update_edition(self):
 		"""Updates the edition of the CollectBot."""
@@ -238,13 +257,14 @@ class CollectBot:
 	def section_news(self, title: str, urls:list[dict[str, any]],
 					 interval: int, filename: str,
 					 max_results: int = 10) -> str:
-		rss_tool: RssTool = RssTool(urls=urls, cache_duration=interval,
-									max_results=max_results,
-									cache_directory=self.filepath_cache_directory,
-									cache_file=filename)
+		rss: RssTool = RssTool(self.user_agent,
+							   urls=urls, cache_duration=interval,
+							   max_results=max_results,
+							   cache_directory=self.filepath_cache_directory,
+							   cache_file=filename)
 		html_section: str = CollectBotTemplate.generate_html_section(
 			title=title,
-			fetch_func=rss_tool.fetch
+			fetch_func=rss.fetch
 		)
 		return html_section
 	
@@ -280,6 +300,10 @@ class CollectBot:
 			file_path=img_filepath, object_name="og-image.jpeg"
 		)
 
+		#js_updated: bool = aws_helper.upload_file_if_changed(
+		#	file_path='httpd/js/display.js', object_name='display.js'
+		#)
+
 		index_updated: bool = aws_helper.upload_file_if_changed(
 			file_path='httpd/index.html', object_name='index.html'
 		)
@@ -304,6 +328,10 @@ class CollectBot:
 
 				invalidation_id = cf.create_invalidation(['/index.html'])
 				logger.info(f"Invalidation ID: {invalidation_id} - /index.html")
+
+			#if js_updated:
+			#	invalidation_id = cf.create_invalidation(['/display.js'])
+			#	logger.info(f"Invalidation ID: {invalidation_id}")
 
 			if sitemap_updated:
 				invalidation_id = cf.create_invalidation(['/sitemap.xml'])
