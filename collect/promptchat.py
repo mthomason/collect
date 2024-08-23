@@ -51,12 +51,12 @@ class PromptPersonalityAuctioneer(PromptPersonality):
 			raise ValueError("The file 'prompts/function_headlines_function.json' was not found.")
 
 		self.prompts = [self.prompt_start]
+	
+	def __del__(self):
+		self.headlines.clear()
 
 	def add_headline(self, id: str, headline: str, ) -> None:
 		self.headlines.append({"identifier": id, "headline": headline})
-
-	def clear_headlines(self) -> None:
-		self.headlines.clear()
 
 	def generate_response(self, prompt: str) -> str:
 		return f"{self.name}: {prompt}"
@@ -154,9 +154,6 @@ class PromptPersonalityAuctioneer(PromptPersonality):
 				if headline:
 					headlines.append(headline)
 			return iter(headlines)
-
-	def __del__(self):
-		self.headlines.clear()
 
 if __name__ == "__main__":
 	raise ValueError("This script is not meant to be run directly.")

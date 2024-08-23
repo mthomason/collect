@@ -61,16 +61,18 @@ class CollectBotTemplate:
 		attrs = " ".join([f'{k}="{v}"' for k, v in (attributes or {}).items()])
 		return f'<{tag} {attrs}>{content}</{tag}>'
 
-	def generate_html_section(title: str, fetch_func: Callable[[], Generator[dict[str, str], None, None]]) -> str:
+	def generate_html_section(
+			title: str,
+			fetch_func: Callable[[], Generator[dict[str, str], None, None]]
+		) -> str:
 		buffer_html: StringIO = StringIO()
 		buffer_html.write(CollectBotTemplate.make_item_header(title))
-
 		buffer_li: StringIO = StringIO()
 		for item in fetch_func():
-			attribs: dict = {
-				"href": item['link'],
-			}
-			link: str = CollectBotTemplate.html_wrapper(tag="a", content=item['title'], attributes=attribs)
+			link: str = CollectBotTemplate.html_wrapper(
+				tag="a", content=item['title'],
+				attributes={"href": item['link']}
+			)
 			list_item: str = CollectBotTemplate.html_wrapper(tag="li", content=link)
 			buffer_li.write(list_item)
 			buffer_li.write("\n")

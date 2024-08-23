@@ -186,6 +186,66 @@ class EBayAuctions:
 		search_results: list[dict[str, any]] = self._api_cache.cached_api_call(self._ebay_api.search_top_watched_items, category_id, max_results)
 		return search_results
 
+	def process_and_upload_image(self, item: dict) -> str:
+		"""
+		Process an image URL, download the image if necessary, upload it to S3, 
+		and return the image path.
+
+		:param self: The instance containing configurations like cache directories.
+		:param item: The dictionary containing the item's details including the image URL and itemId.
+		:param download_images: A boolean flag indicating whether images should be downloaded.
+		:return: The relative path of the image uploaded to S3.
+		"""
+		image_url: str = item['galleryURL']
+		image_url_large: str = ""
+		path_obj: Path | None = None
+
+		if image_url.endswith("s-l140.jpg"):
+			image_url = image_url.replace("s-l140.jpg", "s-l400.jpg")
+		if image_url.endswith("s-l400.jpg"):
+			image_url_large = image_url.replace("s-l400.jpg", "s-l1600.jpg")
+
+		# Attempt to cache the main image, fallback on error
+		try:
+			image_cache = ImageCache(
+				url=image_url, identifier=item['itemId'],
+				cache_dir=self._image_dir, user_agent=self._user_agent
+			)
+		except Exception as e:
+			logger.error(f"Error: {e}")
+			image_cache = ImageCache(
+				url=item['galleryURL'],
+				identifier=item['itemId'],
+				cache_dir=self._image_dir,
+				user_agent=self._user_agent
+			)
+
+		# Ensure images are downloaded
+		image_cache.download_image_if_needed()
+		if image_url_large:
+			image_cache_large = ImageCache(
+				url=image_url_large,
+				identifier=item['itemId'] + "_large",
+				cache_dir=self._image_dir,
+				user_agent=self._user_agent
+			)
+			image_cache_large.download_image_if_needed()
+
+		local_path = image_cache.image_path
+		aws_helper = AwsS3Helper(
+			bucket_name='hobbyreport.net',
+			region='us-east-1',
+			ensure_bucket=False,
+			cache_dir=self._cache_dir
+		)
+
+		path_obj = Path(local_path)
+		aws_helper.upload_file_if_changed(
+			local_path,
+			f"i/{path_obj.name}"
+		)
+		return str(Path('i') / path_obj.name)
+
 	def top_item_to_markdown(self, item: dict[str, any], epn_category: str,
 							 download_images: bool = True) -> AuctionListing:
 		if not item:
@@ -202,66 +262,18 @@ class EBayAuctions:
 			title = headline['headline']
 			break
 
+		del auctioneer
+
 		item_url: str = item['viewItemURL']
 		epn_url: str = eBayAPIHelper.generate_epn_link(item_url, epn_category)
 		end_time_string: str = item['listingInfo']['endTime']
 		end_datetime: datetime = datetime.strptime(end_time_string, "%Y-%m-%dT%H:%M:%S.%fZ")
 		now: datetime = datetime.now(tz=end_datetime.tzinfo)
-		path_obj: Path | None = None
-		if download_images:
-			image_url = item['galleryURL']
-			image_url_large: str = ""
-
-			if image_url.endswith("s-l140.jpg"):
-				image_url = image_url.replace("s-l140.jpg", "s-l400.jpg")
-
-			try:
-				image_cache = ImageCache(
-					url=image_url, identifier=item['itemId'],
-					cache_dir=self._image_dir, user_agent=self._user_agent
-				)
-			except Exception as e:
-				image_cache = ImageCache(
-					url=item['galleryURL'],
-					identifier=item['itemId'],
-					cache_dir=self._image_dir,
-					user_agent=self._user_agent
-				)
-				logger.error(f"Error: {e}")
-
-			try:
-				if image_url.endswith("s-l400.jpg"):
-					image_url_large = image_url.replace("s-l400.jpg", "s-l1600.jpg")
-				image_cache_large = ImageCache(
-					url=image_url_large,
-					identifier=item['itemId'] + "_large",
-					cache_dir=self._image_dir,
-					user_agent=self._user_agent
-				)
-				image_cache_large.download_image_if_needed()
-			except Exception as e:
-				logger.error(f"Error: {e}")
-
-			image_cache.download_image_if_needed()
-			local_path = image_cache.image_path
-			aws_helper: AwsS3Helper = AwsS3Helper(
-				bucket_name='hobbyreport.net',
-				region='us-east-1',
-				ensure_bucket=False,
-				cache_dir=self._cache_dir
-			)
-			aws_helper.upload_file_if_changed(
-				local_path,
-				f"i/{Path(local_path).name}"
-			)
-
-			path_obj = Path(local_path)
-
 		image: str = ""
-		if path_obj is None:
-			image = ""
-		else:
-			image = str(Path('i') / path_obj.name)
+
+		if download_images:
+			image = self.process_and_upload_image(item)
+
 		auction_listing: AuctionListing = AuctionListing(
 			image=image,
 			title=title,
@@ -296,7 +308,7 @@ class EBayAuctions:
 		for headline in headlines_iterator:
 			headlines_ids[headline['identifier']] = headline['headline']
 
-		auctioneer.clear_headlines()
+		del auctioneer
 
 		for item in items:
 			item_id = item['itemId']

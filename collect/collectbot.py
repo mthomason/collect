@@ -126,6 +126,15 @@ class CollectBot:
 		"""Returns the category for the eBay Partner Network for the headline link."""
 		return self._epn_categories["headline_link"]
 	
+	def generate_site(self, ebay_auctions: EBayAuctions):
+		self.write_html_to_file(ebay_auctions)
+		self.create_sitemap(["https://hobbyreport.net"])
+		self.create_style_sheet()
+		#self.create_js()
+		self.backup_files()
+		self.update_edition()
+		self.upload_to_s3()
+
 	def write_html_to_file(self, ebay_auctions: EBayAuctions):
 		"""Writes the HTML to the output file."""
 		s: str = self.create_html(ebay_auctions)
@@ -144,13 +153,15 @@ class CollectBot:
 	
 	def _create_html_body(self, ebay_auctions: EBayAuctions) -> str:
 
-		exclude: list[str] = []
+		exclude: list[str] = [] # Track items displayed above the fold
 
+		# Get the top 3-5 items to display above the fold
 		topn: list[dict[str, any]] = ebay_auctions.top_n_sorted_auctions(
 			randint(3, 5) + 1,
 			exclude=exclude
 		)
 
+		# The top item will be used as a headline
 		topitem: dict[str, any] = topn.pop(0)
 		exclude.append(topitem['itemId'])
 
@@ -191,14 +202,18 @@ class CollectBot:
 		top_item_md: str = "\n".join((img, link))
 
 		bufbody: StringIO = StringIO()
-		bufbody.write(CollectBotTemplate.make_above_fold(
-			self._config["display-above-the-fold-header"],
-			above_fold_links)
+		bufbody.write(
+			CollectBotTemplate.make_above_fold(
+				self._config["display-above-the-fold-header"],
+				above_fold_links
+			)
 		)
 		bufbody.write(CollectBotTemplate.make_nameplate(self._app_name))
-		bufbody.write(CollectBotTemplate.make_lead_headline(
-			self._config["display-lead-headline-header"],
-			body=top_item_md)
+		bufbody.write(
+			CollectBotTemplate.make_lead_headline(
+				self._config["display-lead-headline-header"],
+				body=top_item_md
+			)
 		)
 		auctions: str = CollectBotTemplate.auctions_to_html(
 			ebay_auctions, exclude=exclude
