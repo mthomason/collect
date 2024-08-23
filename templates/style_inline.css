@@ -12,7 +12,7 @@ body {
 	display: contents;
 }
 
-#above-fold>h2, #lead-headline>h2 {
+footer>h2, #above-fold>h2, #lead-headline>h2 {
 	display: none;
 	margin: 0;
 	padding: 0;

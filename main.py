@@ -2,8 +2,9 @@
 # -*- coding: utf-8 -*-
 
 import logging
-
+import json
 from dotenv import load_dotenv
+from os import path
 
 from core.logging_config import setup_logging
 from collect.ebayapi import EBayAuctions
@@ -14,12 +15,15 @@ if __name__ == "__main__":
 	if not load_dotenv():
 		raise ValueError("Failed to load the .env file.")
 
-	collectbot: CollectBot = CollectBot()
+	app_config: dict[str, any] = None
+	with open("config/config.json", "r") as file:
+			app_config = json.load(file)
 
-	setup_logging(collectbot.filepath_log)
+	setup_logging(app_config["output-log-file"], log_level=logging.INFO)
 	logger = logging.getLogger(__name__)
 	logger.info("Application started")
 
+	collectbot: CollectBot = CollectBot("Hobby Report", app_config)
 	ebay_auctions: EBayAuctions = EBayAuctions(
 		filepath_cache_directory=collectbot.filepath_cache_directory,
 		filepath_image_directory=collectbot.filepath_image_directory,
@@ -28,4 +32,5 @@ if __name__ == "__main__":
 		user_agent=collectbot.user_agent
 	)
 	ebay_auctions.load_auctions()
-	collectbot.generate_site(ebay_auctions=ebay_auctions)
+	collectbot.set_ebay_auctions(ebay_auctions)
+	collectbot.generate_site()

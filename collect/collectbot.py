@@ -10,45 +10,39 @@ from random import randint
 
 from os import path
 
+from typing import Optional
+from core.html_template_processor import HtmlTemplateProcessor
+from core.rss_tool import RssTool
 from collect.aws_helper import AwsCFHelper, AwsS3Helper
 from collect.collectbot_template import CollectBotTemplate
 from collect.ebayapi import EBayAuctions, AuctionListing
 from collect.filepathtools import FilePathTools
-from core.html_template_processor import HtmlTemplateProcessor
-from core.rss_tool import RssTool
+from collect.listitem import TimeItem, IntItem, UnorderedList
+from collect.listitem import UnorderedList, TimeItem, IntItem, StrItem, LinkItem, DescriptionList
 
 logger = logging.getLogger(__name__)
 
 class CollectBot:
 	"""This is the main class for the CollectBot."""
-	def __init__(self, app_name: str = "Hobby Report"):
-		"""_summary_
-			Initializes the CollectBot.
-
-			_config_
-			{
-				"directory-out": "httpd/",
-				"directory-template": "templates/",
-				"directory-cache": "cache/",
-				"directory-images: "cache/images/",
-				"output-file-name": "index.html"
-			}
-		"""
+	def __init__(
+			self,
+			app_name: str,
+			app_config: dict[str, any],
+			ebay_auctions: Optional[EBayAuctions] = None):
+		assert app_name, "App name is required."
+		assert app_config, "App config is required."
 		self.collectbot_template: CollectBotTemplate = CollectBotTemplate()
 		self._config: dict[str, any] = {}
 		self._markdown_extensions: list[str] = ['attr_list']
 		self._app_name: str = app_name
-		with open("config/config.json", "r") as file:
-			self._config = json.load(file)
+		self._ebay_auctions: EBayAuctions = ebay_auctions
+		self._config = app_config
 		with open("config/epn-categories.json", "r") as file:
 			self._epn_categories = json.load(file)
 
 	@property
 	def filepath_log(self) -> str:
-		return path.join(
-			self._config["directory-log"],
-			self._config["output-log-file"]
-		)
+		return self._config["output-log-file"]
 
 	@property
 	def user_agent(self) -> str:
@@ -126,37 +120,28 @@ class CollectBot:
 		"""Returns the category for the eBay Partner Network for the headline link."""
 		return self._epn_categories["headline_link"]
 	
-	def generate_site(self, ebay_auctions: EBayAuctions):
-		self.write_html_to_file(ebay_auctions)
-		self.create_sitemap(["https://hobbyreport.net"])
-		self.create_style_sheet()
-		#self.create_js()
-		self.backup_files()
-		self.update_edition()
-		self.upload_to_s3()
-
-	def write_html_to_file(self, ebay_auctions: EBayAuctions):
+	def write_html_to_file(self):
 		"""Writes the HTML to the output file."""
-		s: str = self.create_html(ebay_auctions)
+		s: str = self.create_html()
 		with open(self.filepath_output_html, 'w', encoding="utf-8") as file:
 			file.write(s)
 			logger.info(f"File {self.filepath_output_html} created.")
 
-	def create_html(self, ebay_auctions: EBayAuctions) -> str:
+	def create_html(self) -> str:
 		_header: str = self._create_html_header()
-		_body: str = self._create_html_body(ebay_auctions=ebay_auctions)
+		_body: str = self._create_html_body()
 		_footer: str = self._create_html_footer()
 		return "".join((_header, _body, _footer))
 	
 	def _create_html_header(self) -> str:
 		return CollectBotTemplate.create_html_header(self.filepath_template_directory)
 	
-	def _create_html_body(self, ebay_auctions: EBayAuctions) -> str:
+	def _create_html_body(self) -> str:
 
 		exclude: list[str] = [] # Track items displayed above the fold
 
 		# Get the top 3-5 items to display above the fold
-		topn: list[dict[str, any]] = ebay_auctions.top_n_sorted_auctions(
+		topn: list[dict[str, any]] = self._ebay_auctions.top_n_sorted_auctions(
 			randint(3, 5) + 1,
 			exclude=exclude
 		)
@@ -167,7 +152,7 @@ class CollectBot:
 
 		above_fold_links: list[AuctionListing] = []
 		for item in topn:
-			listing: AuctionListing = ebay_auctions.top_item_to_markdown(
+			listing: AuctionListing = self._ebay_auctions.top_item_to_markdown(
 				item,
 				epn_category=self.epn_category_above_headline_link,
 				download_images=False
@@ -175,7 +160,7 @@ class CollectBot:
 			above_fold_links.append(listing)
 			exclude.append(item['itemId'])
 
-		top_listing: AuctionListing = ebay_auctions.top_item_to_markdown(
+		top_listing: AuctionListing = self._ebay_auctions.top_item_to_markdown(
 			topitem,
 			epn_category=self.epn_category_headline_link
 		)
@@ -216,7 +201,7 @@ class CollectBot:
 			)
 		)
 		auctions: str = CollectBotTemplate.auctions_to_html(
-			ebay_auctions, exclude=exclude
+			self._ebay_auctions, exclude=exclude
 		) 
 
 		buffer_html_news: StringIO = StringIO()
@@ -233,7 +218,21 @@ class CollectBot:
 		return result
 
 	def _create_html_footer(self) -> str:
-		return CollectBotTemplate.create_html_footer(self.filepath_template_directory)
+		item_s = StrItem(title="Site", value="Hobby Report")
+		item_l = StrItem(title="Link", value="https://hobbyreport.net")
+		item_e = IntItem(title="Edition", value=self.edition)
+		item_u = TimeItem(title="Last Updated", value=datetime.now())
+		dlitems = DescriptionList()
+		dlitems.additem(item_s)
+		dlitems.additem(item_l)
+		dlitems.additem(item_e)
+		dlitems.additem(item_u)
+		footer_html: str = CollectBotTemplate.make_footer(title="Links", items=dlitems)
+		
+		end_html: str = CollectBotTemplate.create_html_end(
+			self.filepath_template_directory
+		)
+		return footer_html + end_html
 
 	def create_sitemap(self, urls: list[str]):
 		filepath_output:str = path.join(self.filepath_output_directory, "sitemap.xml")
@@ -265,7 +264,10 @@ class CollectBot:
 		"""Updates the edition of the CollectBot."""
 		self._config["edition"] = self._config["edition"] + 1
 		self._config["last-modified"] = datetime.now(timezone.utc).isoformat()
-		filepath_config: str = path.join(self.filepath_config_directory, "config.json")
+		filepath_config: str = path.join(
+			self.filepath_config_directory,
+			"config.json"
+		)
 		with open(filepath_config, "w") as file:
 			json.dump(self._config, file, indent="\t")
 
@@ -363,3 +365,16 @@ class CollectBot:
 			if robots_updated:
 				invalidation_id = cf.create_invalidation(['/robots.txt'])
 				logger.info(f"Invalidation ID: {invalidation_id}")
+
+	def set_ebay_auctions(self, ebay_auctions: EBayAuctions):
+		self._ebay_auctions = ebay_auctions
+
+	def generate_site(self):
+		self.write_html_to_file()
+		self.create_sitemap(["https://hobbyreport.net"])
+		self.create_style_sheet()
+		#self.create_js()
+		self.backup_files()
+		self.update_edition()
+		#self.upload_to_s3()
+		logger.info("Site generation complete.")

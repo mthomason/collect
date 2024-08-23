@@ -7,13 +7,15 @@ from os import path
 import logging
 import markdown
 
-from typing import Generator, Callable, Final
-from collect.ebayapi import EBayAuctions
+from collect.listitem import ListItem, TimeItem, IntItem, UnorderedList
+from collect.listitem import UnorderedList, DescriptionList, TimeItem, IntItem, StrItem, LinkItem, ListItemsCollection
+from collect.ebayapi import EBayAuctions, AuctionListing, AuctionListingSimple
 from core.html_template_processor import HtmlTemplateProcessor
-from core.string_adorner import StringAdorner
-from collect.ebayapi import AuctionListing, AuctionListingSimple
+from core.string_adorner import StringAdorner, HtmlWrapper
+from typing import Generator, Callable, Final
 
 logger = logging.getLogger(__name__)
+
 
 class CollectBotTemplate:
 	_adorner = StringAdorner()
@@ -41,10 +43,13 @@ class CollectBotTemplate:
 		b.close()
 		return r
 	
-	def html_wrapper_no_content(tag: str, attributes: dict = None) -> str:
+	def html_wrapper_no_content(tag: str, attributes: dict = {}) -> str:
 		assert tag, "tag is required."
-		if not attributes:
-			return f'<{tag} />'
+		if len(attributes) == 0:
+			if CollectBotTemplate._html_feature_trailing_slash_on_void:
+				return f'<{tag} />'
+			else:
+				return f'<{tag}>'
 		attrs = " ".join([f'{k}="{v}"' for k, v in (attributes or {}).items()])
 		result: str = ""
 		if CollectBotTemplate._html_feature_trailing_slash_on_void:
@@ -145,7 +150,7 @@ class CollectBotTemplate:
 		)
 		return processor.get_content()
 	
-	def create_html_footer(template_folder: str) -> str:
+	def create_html_end(template_folder: str) -> str:
 		p: str = path.join(template_folder, "footer.html")
 		with open(p, "r", encoding="utf-8") as file:
 			return file.read()
@@ -156,9 +161,8 @@ class CollectBotTemplate:
 		end = len(s)-s[::-1].find('<')-1
 		return s[start:end]
 
-	@_adorner.html_wrapper("p")
 	def make_featured_image(src: str, alt: str) -> str:
-		return CollectBotTemplate.html_wrapper_no_content(
+		s: str = HtmlWrapper.html_item(
 			tag="img",
 			attributes={
 				"src": src,
@@ -166,13 +170,8 @@ class CollectBotTemplate:
 				"alt": alt
 			}
 		)
-
-	@_adorner.md_adornment("**")
-	def md_make_bold(s: str) -> str: return s
-
-	@_adorner.md_adornment("*")
-	def md_make_italic(s: str) -> str: return s
-
+		return HtmlWrapper.wrap_html(content=s, tag="p")
+	
 	@_adorner.html_wrapper_attributes("main", {"id": "hrpt"})
 	def make_newspaper(s: str) -> str: return s
 
@@ -233,6 +232,12 @@ class CollectBotTemplate:
 	@_adorner.html_wrapper_attributes("ol", {})
 	def make_content_ol(s: str) -> str: return s
 
+	@_adorner.html_wrapper("footer")
+	def make_footer(title: str, items: ListItemsCollection) -> str:
+		header: str = CollectBotTemplate.make_section_header(title)
+		body: str = items.gethtml()
+		return header + body
+
 	@_adorner.html_wrapper("header")
 	@_adorner.html_wrapper("h1")
 	def make_nameplate(s: str) -> str: return s
@@ -242,3 +247,6 @@ class CollectBotTemplate:
 
 	@_adorner.html_wrapper("h3")
 	def make_item_header(s: str) -> str: return s
+
+if __name__ == '__main__':
+	raise ValueError("This script is not meant to be run directly.")

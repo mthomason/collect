@@ -4,21 +4,64 @@
 from io import StringIO
 from typing import Callable
 
+class HtmlWrapper:
+	@staticmethod
+	def wrap_html(content: str, tag: str, attributes: dict[str, str] = {}) -> str:
+		_buffer = StringIO()
+		_buffer.seek(0)
+		_buffer.truncate(0)
+		_buffer.write("<")
+		_buffer.write(tag)
+		if len(attributes) > 0:
+			for key, value in attributes.items():
+				_buffer.write(" ")
+				_buffer.write(key)
+				_buffer.write("=\"")
+				_buffer.write(value)
+				_buffer.write("\"")
+				
+		_buffer.write(">")
+		_buffer.write(content)
+		_buffer.write("</")
+		_buffer.write(tag)
+		_buffer.write(">")
+		content: str = _buffer.getvalue()
+		_buffer.seek(0)
+		_buffer.truncate(0)
+		_buffer.close()
+		return content
+
+	@staticmethod
+	def html_item(tag: str, attributes: dict[str, str] = {}):
+		_buffer = StringIO()
+		if len(attributes) == 0:
+			_buffer.write("<")
+			_buffer.write(tag)
+			_buffer.write(">")
+		else:
+			_buffer.write("<")
+			_buffer.write(tag)
+			for key, value in attributes.items():
+				_buffer.write(" ")
+				_buffer.write(key)
+				_buffer.write("=\"")
+				_buffer.write(value)
+				_buffer.write("\"")
+			_buffer.write(">")
+		s: str = _buffer.getvalue()
+		_buffer.seek(0)
+		_buffer.truncate(0)
+		_buffer.close()
+		return s
+
 class StringAdorner:
 
-	def md_adornment(self, adornment: str) -> Callable[[Callable[..., str]], Callable[..., str]]:
+	@staticmethod
+	def wrap_html(tag: str, attributes: dict[str, str] = {}) -> Callable[[Callable[..., str]], Callable[..., str]]:
 		def decorator(func: Callable[..., str]) -> Callable[..., str]:
 			def wrapper(*args: any, **kwargs: any) -> str:
-				_buffer = StringIO()
 				original_output = func(*args, **kwargs)
-				_buffer.write(adornment)
-				_buffer.write(original_output)
-				_buffer.write(adornment)
-				s: str = _buffer.getvalue()
-				_buffer.seek(0)
-				_buffer.truncate(0)
-				_buffer.close()
-				return s
+				return HtmlWrapper.wrap_html(original_output, tag, attributes)
 			return wrapper
 		return decorator
 
