@@ -39,11 +39,12 @@ class FileUploadTracker:
 
 	def has_changed(self, file_path: str) -> bool:
 		"""Check if the file has changed since it was last uploaded."""
-		if not self.is_uploaded(file_path):
+		if self.is_uploaded(file_path):
 			return True
 		file_hash = self._hash_file(file_path)
 		file_name = Path(file_path).name
-		return self.uploaded_files.get(file_name) != file_hash
+		changed: bool = self.uploaded_files.get(file_name) != file_hash
+		return changed
 
 	def is_uploaded(self, file_path: str) -> bool:
 		"""Check if the file has already been uploaded based on its name and hash."""

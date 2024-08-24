@@ -3,15 +3,15 @@
 
 import json
 import os
+from os import path
 
 import xml.etree.ElementTree as ElementTree
+from xml.etree.ElementTree import Element
 
-from os import path
 from core.fetch_bot import FetchBot
 from datetime import datetime, timedelta
 from requests.models import Response
 from typing import Generator
-from xml.etree.ElementTree import Element
 
 class RssTool:
 	def __init__(self, user_agent: str, urls: list[str] | None = None,

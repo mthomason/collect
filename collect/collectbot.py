@@ -252,12 +252,11 @@ class CollectBot:
 	
 	def create_js(self):
 		"""Creates the JavaScript file for the CollectBot."""
-		filepath_input: str = path.join(self.filepath_template_directory, "display.js")
-		with open(filepath_input, "r") as file:
-			js_content: str = HtmlTemplateProcessor.minify_js(file.read())
-			filepath_output: str = path.join(self.filepath_output_directory, "display.js")
-			with open(filepath_output, "w") as file:
-				file.write(js_content)
+		filepath_input: str = path.join(self.filepath_template_directory, "h.min.js")
+		with open(filepath_input, "r") as fin:
+			filepath_output: str = path.join(self.filepath_output_directory, "h.min.js")
+			with open(filepath_output, "w") as fout:
+				fout.write(fin.read())
 				logger.info(f"File {filepath_output} created.")
 
 	def update_edition(self):
@@ -317,10 +316,6 @@ class CollectBot:
 			file_path=img_filepath, object_name="og-image.jpeg"
 		)
 
-		#js_updated: bool = aws_helper.upload_file_if_changed(
-		#	file_path='httpd/js/display.js', object_name='display.js'
-		#)
-
 		index_updated: bool = aws_helper.upload_file_if_changed(
 			file_path='httpd/index.html', object_name='index.html'
 		)
@@ -336,8 +331,11 @@ class CollectBot:
 		robots_updated: bool = aws_helper.upload_file_if_changed(
 			file_path='httpd/robots.txt', object_name='robots.txt'
 		)
+		js_updated: bool = aws_helper.upload_file_if_changed(
+			file_path="httpd/h.min.js", object_name="h.min.js"
+		)
 
-		if index_updated or sitemap_updated or style_updated or favicon_updated or robots_updated:
+		if index_updated or sitemap_updated or style_updated or favicon_updated or robots_updated or js_updated:
 			cf: AwsCFHelper = AwsCFHelper()
 			if index_updated:
 				invalidation_id = cf.create_invalidation(['/'])
@@ -356,15 +354,19 @@ class CollectBot:
 
 			if style_updated:
 				invalidation_id = cf.create_invalidation(['/style.css'])
-				logger.info(f"Invalidation ID: {invalidation_id}")
+				logger.info(f"Invalidation ID: {invalidation_id} - /style.css")
+
+			if js_updated:
+				invalidation_id = cf.create_invalidation(['/h.min.js'])
+				logger.info(f"Invalidation ID: {invalidation_id} - /h.min.js")
 
 			if favicon_updated:
 				invalidation_id = cf.create_invalidation(['/favicon.ico'])
-				logger.info(f"Invalidation ID: {invalidation_id}")
+				logger.info(f"Invalidation ID: {invalidation_id} - /favicon.ico")
 		
 			if robots_updated:
 				invalidation_id = cf.create_invalidation(['/robots.txt'])
-				logger.info(f"Invalidation ID: {invalidation_id}")
+				logger.info(f"Invalidation ID: {invalidation_id} - /robots.txt")
 
 	def set_ebay_auctions(self, ebay_auctions: EBayAuctions):
 		self._ebay_auctions = ebay_auctions
@@ -373,8 +375,8 @@ class CollectBot:
 		self.write_html_to_file()
 		self.create_sitemap(["https://hobbyreport.net"])
 		self.create_style_sheet()
-		#self.create_js()
+		self.create_js()
 		self.backup_files()
 		self.update_edition()
-		#self.upload_to_s3()
+		self.upload_to_s3()
 		logger.info("Site generation complete.")

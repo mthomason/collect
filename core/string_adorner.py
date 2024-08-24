@@ -128,6 +128,7 @@ class StringAdorner:
 		return decorator
 
 if __name__ == "__main__":
+	import sys
 
 	def _profile():
 		import tracemalloc
@@ -171,10 +172,6 @@ if __name__ == "__main__":
 
 		print(f"Peak memory usage with StringIO: {peak_with_stringio} bytes")
 		print(f"Peak memory usage without StringIO: {peak_without_stringio} bytes")
-
-
-	_profile()
-	exit(0)
 
 	if len(sys.argv) > 1 and (sys.argv[1] == "-t" or sys.argv[1] == "--test"):
 		_profile()

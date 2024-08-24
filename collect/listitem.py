@@ -82,7 +82,10 @@ class TimeItem(ListItem):
 		return HtmlWrapper.wrap_html(
 			self.getstring(),
 			"time",
-			{"datetime": self.value.strftime('%Y-%m-%dT%H:%M:%S')}
+			{
+				"id": "last-updated",
+				"datetime": self.value.strftime('%Y-%m-%dT%H:%M:%S')
+			}
 		)
 
 class IntItem(ListItem):
