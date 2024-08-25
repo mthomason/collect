@@ -1,6 +1,7 @@
 # TODO.md
 
 * [x] Implement API to transfer to S3 static host
+* [x] Sort the links by a score based on watch count and bid price
 * [ ] Add links to hobby websites
 * [x] Save the links to releases and create a cache of about twenty of them
 * [ ] Create bot to run the script every few hours
