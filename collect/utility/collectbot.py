@@ -316,53 +316,42 @@ class CollectBot:
 			file_path=img_filepath, object_name="og-image.jpeg"
 		)
 
-		index_updated: bool = aws_helper.upload_file_if_changed(
-			file_path='httpd/index.html', object_name='index.html'
-		)
-		sitemap_updated: bool = aws_helper.upload_file_if_changed(
-			file_path='httpd/sitemap.xml', object_name='sitemap.xml'
-		)
-		style_updated: bool = aws_helper.upload_file_if_changed(
-			file_path='httpd/style.css', object_name='style.css'
-		)
-		favicon_updated: bool = aws_helper.upload_file_if_changed(
-			file_path='httpd/favicon.ico', object_name='favicon.ico'
-		)
-		robots_updated: bool = aws_helper.upload_file_if_changed(
-			file_path='httpd/robots.txt', object_name='robots.txt'
-		)
-		js_updated: bool = aws_helper.upload_file_if_changed(
-			file_path="httpd/h.min.js", object_name="h.min.js"
-		)
+		cf: AwsCFHelper = AwsCFHelper()
+		if aws_helper.upload_file_if_changed(
+			file_path='httpd/index.html', object_name='index.html'):
 
-		if index_updated or sitemap_updated or style_updated or favicon_updated or robots_updated or js_updated:
-			cf: AwsCFHelper = AwsCFHelper()
-			if index_updated:
-				invalidation_id = cf.create_invalidation(['/'])
-				logger.info(f"Invalidation ID: {invalidation_id} - /")
+			invalidation_id = cf.create_invalidation(['/'])
+			logger.info(f"Invalidation ID: {invalidation_id} - /")
 
-				invalidation_id = cf.create_invalidation(['/index.html'])
-				logger.info(f"Invalidation ID: {invalidation_id} - /index.html")
+			invalidation_id = cf.create_invalidation(['/index.html'])
+			logger.info(f"Invalidation ID: {invalidation_id} - /index.html")
 
-			if sitemap_updated:
-				invalidation_id = cf.create_invalidation(['/sitemap.xml'])
-				logger.info(f"Invalidation ID: {invalidation_id} - /sitemap.xml")
+		if aws_helper.upload_file_if_changed(
+			file_path='httpd/sitemap.xml', object_name='sitemap.xml'):
+			invalidation_id = cf.create_invalidation(['/sitemap.xml'])
+			logger.info(f"Invalidation ID: {invalidation_id} - /sitemap.xml")
 
-			if style_updated:
-				invalidation_id = cf.create_invalidation(['/style.css'])
-				logger.info(f"Invalidation ID: {invalidation_id} - /style.css")
-
-			if js_updated:
-				invalidation_id = cf.create_invalidation(['/h.min.js'])
-				logger.info(f"Invalidation ID: {invalidation_id} - /h.min.js")
-
-			if favicon_updated:
-				invalidation_id = cf.create_invalidation(['/favicon.ico'])
-				logger.info(f"Invalidation ID: {invalidation_id} - /favicon.ico")
+		if aws_helper.upload_file_if_changed(
+			file_path='httpd/style.css', object_name='style.css'):
+			invalidation_id = cf.create_invalidation(['/style.css'])
+			logger.info(f"Invalidation ID: {invalidation_id} - /style.css")
 		
-			if robots_updated:
-				invalidation_id = cf.create_invalidation(['/robots.txt'])
-				logger.info(f"Invalidation ID: {invalidation_id} - /robots.txt")
+		if aws_helper.upload_file_if_changed(
+			file_path='httpd/favicon.ico', object_name='favicon.ico'):
+			invalidation_id = cf.create_invalidation(['/favicon.ico'])
+			logger.info(f"Invalidation ID: {invalidation_id} - /favicon.ico")
+
+
+		if aws_helper.upload_file_if_changed(
+			file_path='httpd/robots.txt', object_name='robots.txt'):
+			invalidation_id = cf.create_invalidation(['/robots.txt'])
+			logger.info(f"Invalidation ID: {invalidation_id} - /robots.txt")
+		
+
+		if aws_helper.upload_file_if_changed(
+			file_path="httpd/h.min.js", object_name="h.min.js"):
+			invalidation_id = cf.create_invalidation(['/h.min.js'])
+			logger.info(f"Invalidation ID: {invalidation_id} - /h.min.js")
 
 	def set_ebay_auctions(self, ebay_auctions: EBayAuctions):
 		self._ebay_auctions = ebay_auctions
