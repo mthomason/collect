@@ -11,14 +11,14 @@ from random import randint
 from os import path
 
 from typing import Optional
-from core.html_template_processor import HtmlTemplateProcessor
-from core.rss_tool import RssTool
-from collect.aws_helper import AwsCFHelper, AwsS3Helper
-from collect.collectbot_template import CollectBotTemplate
-from collect.ebayapi import EBayAuctions, AuctionListing
-from collect.filepathtools import FilePathTools
-from collect.listitem import TimeItem, IntItem, UnorderedList
-from collect.listitem import UnorderedList, TimeItem, IntItem, StrItem, LinkItem, DescriptionList
+from .core.html_template_processor import HtmlTemplateProcessor
+from .core.rss_tool import RssTool
+from .aws_helper import AwsCFHelper, AwsS3Helper
+from .collectbot_template import CollectBotTemplate
+from .ebayapi import EBayAuctions, AuctionListing
+from .filepathtools import FilePathTools
+from .listitem import TimeItem, IntItem, UnorderedList
+from .listitem import UnorderedList, TimeItem, IntItem, StrItem, LinkItem, DescriptionList
 
 logger = logging.getLogger(__name__)
 

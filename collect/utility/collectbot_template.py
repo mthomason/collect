@@ -7,11 +7,11 @@ from os import path
 import logging
 import markdown
 
-from collect.listitem import ListItem, TimeItem, IntItem, UnorderedList
-from collect.listitem import UnorderedList, DescriptionList, TimeItem, IntItem, StrItem, LinkItem, ListItemsCollection
-from collect.ebayapi import EBayAuctions, AuctionListing, AuctionListingSimple
-from core.html_template_processor import HtmlTemplateProcessor
-from core.string_adorner import StringAdorner, HtmlWrapper
+from .listitem import ListItem, TimeItem, IntItem, UnorderedList
+from .listitem import UnorderedList, DescriptionList, TimeItem, IntItem, StrItem, LinkItem, ListItemsCollection
+from .ebayapi import EBayAuctions, AuctionListing, AuctionListingSimple
+from .core.html_template_processor import HtmlTemplateProcessor
+from .core.string_adorner import StringAdorner, HtmlWrapper
 from typing import Generator, Callable, Final
 
 logger = logging.getLogger(__name__)

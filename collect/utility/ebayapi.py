@@ -7,10 +7,10 @@ import urllib.parse
 import json
 import logging
 
-from collect.apicache import APICache
-from collect.aws_helper import AwsS3Helper
-from core.imagecache import ImageCache
-from collect.promptchat import PromptPersonalityAuctioneer
+from .apicache import APICache
+from .aws_helper import AwsS3Helper
+from .core.imagecache import ImageCache
+from .promptchat import PromptPersonalityAuctioneer
 from datetime import datetime, timedelta
 from ebaysdk.finding import Connection as Finding
 from ebaysdk.exception import ConnectionError
@@ -174,7 +174,6 @@ class EBayAuctions:
 
 		return sorted_items
 
-	
 	def _search_results_to_html(self, items: list[dict], epn_category: str,
 							exclude:list[str] = None) -> list[AuctionListingSimple]:
 		return self._search_results_to_markdown(items, epn_category, exclude)

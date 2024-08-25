@@ -4,7 +4,7 @@
 from datetime import datetime, timezone
 from dataclasses import dataclass
 from abc import ABC, abstractmethod
-from core.string_adorner import StringAdorner, HtmlWrapper
+from .core.string_adorner import StringAdorner, HtmlWrapper
 from enum import Enum
 from typing import Generator
 

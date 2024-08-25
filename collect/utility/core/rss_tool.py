@@ -8,7 +8,7 @@ from os import path
 import xml.etree.ElementTree as ElementTree
 from xml.etree.ElementTree import Element
 
-from core.fetch_bot import FetchBot
+from .fetch_bot import FetchBot
 from datetime import datetime, timedelta
 from requests.models import Response
 from typing import Generator

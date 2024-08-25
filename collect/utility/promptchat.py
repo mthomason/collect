@@ -7,7 +7,7 @@ import os
 import json
 import logging
 
-from core.jsondatacache import JSONDataCache
+from .core.jsondatacache import JSONDataCache
 from io import StringIO
 from abc import ABC, abstractmethod
 
