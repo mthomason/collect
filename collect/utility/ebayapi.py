@@ -22,12 +22,14 @@ from urllib.parse import urlencode, urlparse, urlunparse, parse_qsl, ParseResult
 logger = logging.getLogger(__name__)
 
 class AuctionListingSimple(NamedTuple):
+	identifier: str
 	title: str
 	url: str
 	ending_soon: bool
 	end_datetime: datetime
 
 class AuctionListing(NamedTuple):
+	identifier: str
 	title: str
 	url: str
 	ending_soon: bool
@@ -274,6 +276,7 @@ class EBayAuctions:
 			image = self.process_and_upload_image(item)
 
 		auction_listing: AuctionListing = AuctionListing(
+			identifier=item['itemId'],
 			image=image,
 			title=title,
 			url=epn_url,
@@ -332,6 +335,7 @@ class EBayAuctions:
 
 			if end_datetime > now:
 				auction_listing_simple: AuctionListingSimple = AuctionListingSimple(
+					identifier=item_id,
 					title=title,
 					url=epn_url,
 					ending_soon=end_datetime - now < timedelta(days=1),

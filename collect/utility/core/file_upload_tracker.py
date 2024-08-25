@@ -39,12 +39,15 @@ class FileUploadTracker:
 
 	def has_changed(self, file_path: str) -> bool:
 		"""Check if the file has changed since it was last uploaded."""
-		if self.is_uploaded(file_path):
-			return True
+		if not os.path.exists(file_path):
+			raise FileNotFoundError(f"File not found: {file_path}")
+			
 		file_hash = self._hash_file(file_path)
 		file_name = Path(file_path).name
-		changed: bool = self.uploaded_files.get(file_name) != file_hash
-		return changed
+		previous_hash = self.uploaded_files.get(file_name)
+		
+		# Return True if the file is not in the cache or the hash has changed
+		return previous_hash != file_hash
 
 	def is_uploaded(self, file_path: str) -> bool:
 		"""Check if the file has already been uploaded based on its name and hash."""
@@ -74,11 +77,11 @@ if __name__ == "__main__":
 		
 		test_file = "httpd/style.css"
 		
-		if tracker.is_uploaded(test_file):
+		if tracker.has_changed(test_file):
 			print("File has already been uploaded.")
+			tracker.mark_as_uploaded(test_file)
 		else:
 			print("File is new, uploading...")
-			tracker.mark_as_uploaded(test_file)
 
 	if len(sys.argv) > 1 and (sys.argv[1] == "-t" or sys.argv[1] == "--test"):
 		_test()

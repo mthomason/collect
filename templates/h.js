@@ -23,8 +23,26 @@ function updateTimeAgo() {
 	timeElement.textContent = timeAgoText;
 }
 
+function updateExpiredLinks() {
+	const times = document.querySelectorAll('time.endtime');
+
+	times.forEach(function(time) {
+		const endTime = new Date(time.getAttribute('datetime'));
+		const currentTime = new Date();
+
+		if (currentTime > endTime) {
+			const link = time.previousElementSibling;  // The <a> tag before the <time> tag
+			link.style.textDecoration = 'line-through';  // Strike out the link
+		}
+	});
+}
+
 // Call the function when the DOM is fully loaded
 document.addEventListener('DOMContentLoaded', function() {
 	updateTimeAgo();
 	setInterval(updateTimeAgo, 60000);  // Update every 60 seconds
 });
+document.addEventListener('DOMContentLoaded', function() {
+	updateExpiredLinks();
+	setInterval(updateExpiredLinks, 60000 * 5);  // Update every 5 minues
+})

@@ -344,10 +344,6 @@ class CollectBot:
 				invalidation_id = cf.create_invalidation(['/index.html'])
 				logger.info(f"Invalidation ID: {invalidation_id} - /index.html")
 
-			#if js_updated:
-			#	invalidation_id = cf.create_invalidation(['/display.js'])
-			#	logger.info(f"Invalidation ID: {invalidation_id}")
-
 			if sitemap_updated:
 				invalidation_id = cf.create_invalidation(['/sitemap.xml'])
 				logger.info(f"Invalidation ID: {invalidation_id} - /sitemap.xml")

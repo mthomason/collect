@@ -25,6 +25,8 @@ a {
 
 */
 
+time.endtime{ display:none; padding:0; margin:0; }
+
 dt {
 	font-weight: 600;
 	padding-bottom: 0.2em;

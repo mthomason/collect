@@ -113,6 +113,18 @@ class CollectBotTemplate:
 					attribs["class"] = "aending"
 				title: str = CollectBotTemplate.strip_outter_tag(markdown.markdown(listing.title))
 				link: str = CollectBotTemplate.html_wrapper(tag="a", content=title, attributes=attribs)
+				time: str = ""
+				if listing.ending_soon:
+					time = CollectBotTemplate.html_wrapper(
+						tag="time",
+						content=listing.end_datetime.strftime('%Y-%m-%dT%H:%M:%S'),
+						attributes={
+							"id": f"t{listing.identifier}",
+							"class": "endtime",
+							"datetime": listing.end_datetime.strftime('%Y-%m-%dT%H:%M:%S')
+						}
+					)
+					link = link + time
 				link = CollectBotTemplate.html_wrapper(tag="li", content=link)
 				html_ += link + "\n"
 
