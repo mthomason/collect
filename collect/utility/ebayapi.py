@@ -149,11 +149,8 @@ class EBayAuctions:
 		top_items = sorted(items, key=lambda x: int(x['listingInfo']['watchCount']), reverse=True)[:n]
 		return top_items
 	
-	def top_n_sorted_auctions(self, n: int, exclude: list[str] = []) -> list[dict[str, any]]:
-		items = [
-			item for cat in self._auctions for item in cat['items']
-			if item['itemId'] not in exclude
-		]
+
+	def top_n_sorted_auctions_static(items: list, n: int) -> list[dict[str, any]]:
 		max_watchers = max(
 			int(item['listingInfo']['watchCount']) for item in items
 		)
@@ -176,6 +173,14 @@ class EBayAuctions:
 
 		return sorted_items
 
+	def top_n_sorted_auctions(self, n: int, exclude: list[str] = []) -> list[dict[str, any]]:
+		items = [
+			item for cat in self._auctions for item in cat['items']
+			if item['itemId'] not in exclude
+		]
+
+		return EBayAuctions.top_n_sorted_auctions_static(items, n)
+
 	def _search_results_to_html(self, items: list[dict], epn_category: str,
 							exclude:list[str] = None) -> list[AuctionListingSimple]:
 		return self._search_results_to_markdown(items, epn_category, exclude)
@@ -183,9 +188,13 @@ class EBayAuctions:
 	def _search_top_items_from_catagory(self, category_id: str, ttl: int, max_results: int) -> list[dict[str, any]]:
 		if not category_id or len(category_id) > 6:
 			raise ValueError("category_id is required and must be less than six characters.")
+
 		self._api_cache.cache_file = str.join(".", [str.zfill(category_id, 6), "json"])	
-		search_results: list[dict[str, any]] = self._api_cache.cached_api_call(self._ebay_api.search_top_watched_items, category_id, max_results)
-		return search_results
+		search_results: list[dict[str, any]] = self._api_cache.cached_api_call(
+			self._ebay_api.search_top_watched_items,
+			category_id, max_results
+		)
+		return EBayAuctions.top_n_sorted_auctions_static(search_results, max_results)
 
 	def process_and_upload_image(self, item: dict) -> str:
 		"""
