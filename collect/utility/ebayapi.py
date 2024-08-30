@@ -11,7 +11,7 @@ from .apicache import APICache
 from .aws_helper import AwsS3Helper
 from .core.imagecache import ImageCache
 from .promptchat import PromptPersonalityAuctioneer
-from datetime import datetime, timedelta
+from datetime import datetime, timezone, timedelta
 from ebaysdk.finding import Connection as Finding
 from ebaysdk.exception import ConnectionError
 from os import path
@@ -20,6 +20,18 @@ from typing import NamedTuple
 from urllib.parse import urlencode, urlparse, urlunparse, parse_qsl, ParseResult
 
 logger = logging.getLogger(__name__)
+
+
+class TimeZoneConverter:
+	@staticmethod
+	def convert_to_local_time(utc_time_string: str) -> datetime:
+		utc_time = datetime.strptime(utc_time_string, '%Y-%m-%dT%H:%M:%S.%fZ')
+		utc_time = utc_time.replace(tzinfo=timezone.utc)
+		return utc_time.astimezone()
+
+# Example usage
+#items = response.dict().get('searchResult', {}).get('item', [])
+#update_item_times(items)
 
 class AuctionListingSimple(NamedTuple):
 	identifier: str
@@ -45,7 +57,11 @@ class eBayAPIHelper:
 		if not self.appid or not self.certid or not self.devid:
 			raise ValueError("Please set the EBAY_APPID, EBAY_CERTID, and EBAY_DEVID environment variables.")
 
-		self.api = Finding(appid=self.appid, config_file=None, domain="svcs.ebay.com")
+		self.api = Finding(
+			appid=self.appid,
+			config_file=None,
+			domain="svcs.ebay.com"
+		)
 
 	@staticmethod
 	def generate_epn_link(original_url: str, campaign_id: str, custom_id: str = "") -> str:
@@ -67,7 +83,10 @@ class eBayAPIHelper:
 
 		query: dict = dict(parse_qsl(url_parts.query))
 		query.update(base_params)
-		url_new: ParseResult = ParseResult(url_parts.scheme, url_parts.netloc, url_path_new, url_parts.params, urlencode(query), url_parts.fragment)
+		url_new: ParseResult = ParseResult(
+			url_parts.scheme, url_parts.netloc, url_path_new,
+			url_parts.params, urlencode(query), url_parts.fragment
+		)
 		return urlunparse(url_new)
 
 	@staticmethod
@@ -78,6 +97,13 @@ class eBayAPIHelper:
 		return partner_link
 
 	def search_top_watched_items(self, category_id: str, max_results: int = 10) -> list[dict[str, any]]:
+
+		def update_item_times(items: list[dict[str, any]]) -> None:
+			for item in items:
+				endtime: str = item['listingInfo']['endTime']
+				local_time: datetime = TimeZoneConverter.convert_to_local_time(endtime)
+				item['listingInfo']['endTime'] = local_time.isoformat()
+
 		try:
 			request_params = {
 				'categoryId': category_id,
@@ -93,6 +119,7 @@ class eBayAPIHelper:
 
 			response = self.api.execute('findItemsAdvanced', request_params)
 			items = response.dict().get('searchResult', {}).get('item', [])
+			update_item_times(items)
 			return items
 
 		except ConnectionError as e:
@@ -167,9 +194,7 @@ class EBayAuctions:
 			weight_price = 0.6
 			return (weight_watchers * normalized_watchers) + (weight_price * normalized_price)
 
-		# Sort items by the calculated sort factor
 		sorted_items = sorted(items, key=calculate_sort_factor, reverse=True)[:n]
-
 		return sorted_items
 
 	def top_n_sorted_auctions(self, n: int, exclude: list[str] = []) -> list[dict[str, any]]:
@@ -275,7 +300,7 @@ class EBayAuctions:
 		item_url: str = item['viewItemURL']
 		epn_url: str = eBayAPIHelper.generate_epn_link(item_url, epn_category)
 		end_time_string: str = item['listingInfo']['endTime']
-		end_datetime: datetime = datetime.strptime(end_time_string, "%Y-%m-%dT%H:%M:%S.%fZ")
+		end_datetime: datetime = datetime.fromisoformat(end_time_string)
 		now: datetime = datetime.now(tz=end_datetime.tzinfo)
 		image: str = ""
 
@@ -337,7 +362,7 @@ class EBayAuctions:
 
 			epn_url = eBayAPIHelper.generate_epn_link(item['viewItemURL'], epn_category)
 			end_time_string: str = item['listingInfo']['endTime']
-			end_datetime: datetime = datetime.strptime(end_time_string, "%Y-%m-%dT%H:%M:%S.%fZ")
+			end_datetime: datetime = datetime.fromisoformat(end_time_string)
 			now: datetime = datetime.now(tz=end_datetime.tzinfo)
 
 			if end_datetime > now:

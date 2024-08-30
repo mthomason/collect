@@ -121,7 +121,7 @@ class CollectBotTemplate:
 						attributes={
 							"id": f"t{listing.identifier}",
 							"class": "endtime",
-							"datetime": listing.end_datetime.strftime('%Y-%m-%dT%H:%M:%S')
+							"datetime": listing.end_datetime.isoformat()
 						}
 					)
 					link = link + time
@@ -201,7 +201,7 @@ class CollectBotTemplate:
 					attributes={
 						"id": f"t{link.identifier}",
 						"class": "endtime",
-						"datetime": link.end_datetime.strftime('%Y-%m-%dT%H:%M:%S')
+						"datetime": link.end_datetime.isoformat()
 					}
 				)
 			
