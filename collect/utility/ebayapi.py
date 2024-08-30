@@ -206,7 +206,7 @@ class EBayAuctions:
 
 	def _search_results_to_html(self, items: list[dict], epn_category: str,
 							exclude:list[str] = None) -> list[AuctionListingSimple]:
-		return self._search_results_to_markdown(items, epn_category, exclude)
+		return self._search_results_to_auction_listings(items, epn_category, exclude)
 
 	def _search_top_items_from_catagory(self, category_id: str, ttl: int, max_results: int) -> list[dict[str, any]]:
 		if not category_id or len(category_id) > 6:
@@ -317,7 +317,7 @@ class EBayAuctions:
 		)
 		return auction_listing
 
-	def _search_results_to_markdown(self, items: list[dict], epn_category: str,
+	def _search_results_to_auction_listings(self, items: list[dict], epn_category: str,
 								exclude:list[str] = None) -> list[AuctionListingSimple]:
 		"""Converts a list of search results to markdown."""
 		auction_listings: list[AuctionListingSimple] = []
