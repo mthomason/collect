@@ -98,15 +98,12 @@ class FetchBot:
 				cache_data: dict = json.load(cache_file)
 				cache_timestamp: float = cache_data["timestamp"]
 				cache_is_valid = time.time() - cache_timestamp < self.cache_robots_txt_ttl()
-		
+
 		if cache_is_valid:
 			robots_txt: str = cache_data["robots_txt"]
 			robot_parser: RobotFileParser = RobotFileParser()
 			robot_parser.parse(robots_txt.splitlines())
-			if robot_parser.can_fetch(self._user_agent, self._url):
-				allowed_query = True
-			else:
-				allowed_query = False
+			allowed_query = robot_parser.can_fetch(self._user_agent, self._url)
 		else:
 			# Cache is old or doesn't exist.  Fetch the robots.txt file.
 			response: Response = self.get(self.robots_url)

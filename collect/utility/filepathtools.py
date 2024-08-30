@@ -1,10 +1,13 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 
+import logging
 import os
 import hashlib
 import shutil
 from datetime import datetime
+
+logger = logging.getLogger(__name__)
 
 class FilePathTools(object):
 
@@ -28,7 +31,7 @@ class FilePathTools(object):
 		backup_path = os.path.join(backup_location, backup_file_name)
 
 		shutil.copy2(file_path, backup_path)
-		print(f"File copied to {backup_path}")
+		logger.info(f"File copied to {backup_path}")
 
 	@staticmethod
 	def get_temp_dir() -> str:

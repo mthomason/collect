@@ -190,13 +190,24 @@ class CollectBotTemplate:
 	@_adorner.html_wrapper_attributes("ol", {})
 	def make_above_fold_links(links: list[AuctionListing]) -> str:
 		buf: StringIO = StringIO()
+		time: str = ""
 		for link in links:
 			attribs: dict = { "href": link.url }
 			if link.ending_soon:
 				attribs["class"] = "aending"
+				time = CollectBotTemplate.html_wrapper(
+					tag="time",
+					content=link.end_datetime.strftime('%Y-%m-%dT%H:%M:%S'),
+					attributes={
+						"id": f"t{link.identifier}",
+						"class": "endtime",
+						"datetime": link.end_datetime.strftime('%Y-%m-%dT%H:%M:%S')
+					}
+				)
+			
 			title: str = CollectBotTemplate.strip_outter_tag(markdown.markdown(link.title))
 			link: str = CollectBotTemplate.html_wrapper(tag="a", content=title, attributes=attribs)
-			link = CollectBotTemplate.html_wrapper(tag="li", content=link)
+			link = CollectBotTemplate.html_wrapper(tag="li", content=(link + time))
 			buf.write(link)
 			buf.write("\n")
 

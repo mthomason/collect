@@ -1,12 +1,16 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 
+import logging
+
 from datetime import datetime, timezone
 from dataclasses import dataclass
 from abc import ABC, abstractmethod
 from .core.string_adorner import StringAdorner, HtmlWrapper
 from enum import Enum
 from typing import Generator
+
+logger = logging.getLogger(__name__)
 
 class ListType(Enum):
 	Unordered = 1
