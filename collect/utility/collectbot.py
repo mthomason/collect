@@ -152,7 +152,7 @@ class CollectBot:
 
 		above_fold_links: list[AuctionListing] = []
 		for item in topn:
-			listing: AuctionListing = self._ebay_auctions.top_item_to_markdown(
+			listing: AuctionListing = self._ebay_auctions.top_item_to_auction_listing(
 				item,
 				epn_category=self.epn_category_above_headline_link,
 				download_images=False
@@ -160,7 +160,7 @@ class CollectBot:
 			above_fold_links.append(listing)
 			exclude.append(item['itemId'])
 
-		top_listing: AuctionListing = self._ebay_auctions.top_item_to_markdown(
+		top_listing: AuctionListing = self._ebay_auctions.top_item_to_auction_listing(
 			topitem,
 			epn_category=self.epn_category_headline_link
 		)

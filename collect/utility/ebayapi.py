@@ -279,7 +279,7 @@ class EBayAuctions:
 		)
 		return str(Path('i') / path_obj.name)
 
-	def top_item_to_markdown(self, item: dict[str, any], epn_category: str,
+	def top_item_to_auction_listing(self, item: dict[str, any], epn_category: str,
 							 download_images: bool = True) -> AuctionListing:
 		if not item:
 			raise ValueError("Item not set.")
