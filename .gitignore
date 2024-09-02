@@ -7,8 +7,9 @@ httpd/
 logs/
 config/
 
-# Minified JS
+# Minified Files
 *.min.js
+*.min.css
 
 templates/og-image.jpeg
 templates/logo.png
