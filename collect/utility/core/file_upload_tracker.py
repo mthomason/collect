@@ -4,8 +4,11 @@
 import os
 import hashlib
 import json
+import logging
 from pathlib import Path
 from typing import Dict
+
+logger = logging.getLogger(__name__)
 
 class FileUploadTracker:
 	def __init__(self, cache_dir: str):
@@ -22,6 +25,8 @@ class FileUploadTracker:
 			try:
 				return json.load(f)
 			except json.JSONDecodeError:
+				logging.error(f"Error loading cache file: {self.cache_file}")
+				logging.error("Creating a new empty cache file.")
 				return {}
 
 	def _save_cache(self):

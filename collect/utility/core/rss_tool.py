@@ -65,7 +65,7 @@ class RssTool:
 
 		for url in self._urls:
 			request_bot: FetchBot = FetchBot(url)
-			if not request_bot.obey_robots_txt():
+			if not request_bot.is_allowed_by_robots_txt():
 				raise ValueError("The URL is disallowed by robots.txt.")
 
 			response: Response = request_bot.fetch()

@@ -17,8 +17,7 @@ from .aws_helper import AwsCFHelper, AwsS3Helper
 from .collectbot_template import CollectBotTemplate
 from .ebayapi import EBayAuctions, AuctionListing
 from .filepathtools import FilePathTools
-from .listitem import TimeItem, IntItem, UnorderedList
-from .listitem import UnorderedList, TimeItem, IntItem, StrItem, LinkItem, DescriptionList
+from .listitem import TimeItem, IntItem, UnorderedList, TimeItem, StrItem, LinkItem, DescriptionList
 
 logger = logging.getLogger(__name__)
 
@@ -164,21 +163,21 @@ class CollectBot:
 			topitem,
 			epn_category=self.epn_category_headline_link
 		)
-
 		img: str = CollectBotTemplate.make_featured_image(
 			top_listing.image,
 			"Featured Auction"
 		)
-
-		attribs: dict[str, str] = { "href": top_listing.url }
+		top_listing_class: str = "th"
 		if top_listing.ending_soon:
-			attribs["class"] = "thending"
-		else:
-			attribs["class"] = "th"
+			top_listing_class = "thending"
 
 		title: str = CollectBotTemplate.strip_outter_tag(
 			markdown.markdown(top_listing.title)
 		)
+		attribs: dict[str, str] = {
+			"href": top_listing.url,
+			"class": top_listing_class
+		}
 		link: str = CollectBotTemplate.html_wrapper(
 			tag="a", content=title, attributes=attribs
 		)
@@ -218,15 +217,17 @@ class CollectBot:
 		return result
 
 	def _create_html_footer(self) -> str:
-		item_s = StrItem(title="Site", value="Hobby Report")
-		item_l = StrItem(title="Link", value="https://hobbyreport.net")
-		item_e = IntItem(title="Edition", value=self.edition)
-		item_u = TimeItem(title="Last Updated", value=datetime.now())
 		dlitems = DescriptionList()
-		dlitems.additem(item_s)
-		dlitems.additem(item_l)
-		dlitems.additem(item_e)
-		dlitems.additem(item_u)
+		dlitems.additem(StrItem(
+			title="Site",
+			value=self._config["site-title"]
+		))
+		dlitems.additem(StrItem(
+			title="Link",
+			value=self._config["canonical-url"]
+		))
+		dlitems.additem(IntItem(title="Edition", value=self.edition))
+		dlitems.additem(TimeItem(title="Last Updated", value=datetime.now()))
 		footer_html: str = CollectBotTemplate.make_footer(title="Links", items=dlitems)
 		
 		end_html: str = CollectBotTemplate.create_html_end(

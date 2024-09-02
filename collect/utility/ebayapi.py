@@ -21,18 +21,6 @@ from urllib.parse import urlencode, urlparse, urlunparse, parse_qsl, ParseResult
 
 logger = logging.getLogger(__name__)
 
-
-class TimeZoneConverter:
-	@staticmethod
-	def convert_to_local_time(utc_time_string: str) -> datetime:
-		utc_time = datetime.strptime(utc_time_string, '%Y-%m-%dT%H:%M:%S.%fZ')
-		utc_time = utc_time.replace(tzinfo=timezone.utc)
-		return utc_time.astimezone()
-
-# Example usage
-#items = response.dict().get('searchResult', {}).get('item', [])
-#update_item_times(items)
-
 class AuctionListingSimple(NamedTuple):
 	identifier: str
 	title: str
@@ -84,25 +72,23 @@ class eBayAPIHelper:
 		query: dict = dict(parse_qsl(url_parts.query))
 		query.update(base_params)
 		url_new: ParseResult = ParseResult(
-			url_parts.scheme, url_parts.netloc, url_path_new,
-			url_parts.params, urlencode(query), url_parts.fragment
+			scheme=url_parts.scheme,
+			netloc=url_parts.netloc,
+			path=url_path_new,
+			params=url_parts.params,
+			query=urlencode(query),
+			fragment=url_parts.fragment
 		)
 		return urlunparse(url_new)
-
-	@staticmethod
-	def generate_epn_link_rover(ebay_url: str, tracking_id: str, campaign_id: str) -> str:
-		program_id = "710-53481-19255-0"  # Check your EPN account for the correct value
-		encoded_url = urllib.parse.quote(ebay_url)
-		partner_link = f"https://rover.ebay.com/rover/1/{program_id}/{tracking_id}/{campaign_id}?mpre={encoded_url}"
-		return partner_link
 
 	def search_top_watched_items(self, category_id: str, max_results: int = 10) -> list[dict[str, any]]:
 
 		def update_item_times(items: list[dict[str, any]]) -> None:
 			for item in items:
-				endtime: str = item['listingInfo']['endTime']
-				local_time: datetime = TimeZoneConverter.convert_to_local_time(endtime)
-				item['listingInfo']['endTime'] = local_time.isoformat()
+				endtime_str: str = item['listingInfo']['endTime']
+				naive_dt: datetime = datetime.strptime(endtime_str, '%Y-%m-%dT%H:%M:%S.%fZ')
+				aware_dt: datetime = naive_dt.replace(tzinfo=timezone.utc)
+				item['listingInfo']['endTime'] = aware_dt.isoformat()
 
 		try:
 			request_params = {
@@ -124,7 +110,7 @@ class eBayAPIHelper:
 
 		except ConnectionError as e:
 			logger.error(f"Error: {e}")
-			return []
+			raise
 
 class EBayAuctions:
 	def __init__(self, filepath_cache_directory: str = "cache/",
@@ -245,13 +231,14 @@ class EBayAuctions:
 				cache_dir=self._image_dir, user_agent=self._user_agent
 			)
 		except Exception as e:
-			logger.error(f"Error: {e}")
+			logger.warning(f"Warning (trying to handle) \"{e.__repr__}\"")
 			image_cache = ImageCache(
 				url=item['galleryURL'],
 				identifier=item['itemId'],
 				cache_dir=self._image_dir,
 				user_agent=self._user_agent
 			)
+
 
 		# Ensure images are downloaded
 		image_cache.download_image_if_needed()

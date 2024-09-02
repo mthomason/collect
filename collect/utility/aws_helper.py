@@ -89,8 +89,10 @@ class AwsS3Helper:
 			logger.info(f"File {file_path} uploaded to {self._bucket_name}/{object_name}")
 		except FileNotFoundError:
 			logger.error(f"The file {file_path} was not found.")
+			raise
 		except NoCredentialsError:
 			logger.error("Credentials not available.")
+			raise
 
 	def upload_directory(self, directory_path):
 		for root, dirs, files in os.walk(directory_path):

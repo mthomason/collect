@@ -7,6 +7,9 @@ httpd/
 logs/
 config/
 
+# Minified JS
+*.min.js
+
 templates/og-image.jpeg
 templates/logo.png
 templates/logo-alpha-50.png
