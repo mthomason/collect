@@ -3,7 +3,9 @@ from datetime import datetime
 from collect.utility.listitem import UnorderedList, DescriptionList, TimeItem, IntItem, StrItem, LinkItem
 
 if __name__ == '__main__':
-
+	import unittest
+	unittest.main()
+	"""
 	item_s = StrItem(title="Site", value="Hobby Report")
 	item_l = StrItem(title="Link", value="https://hobbyreport.net")
 	item_h = LinkItem(title="Link", value="https://hobbyreport.net")
@@ -19,4 +21,5 @@ if __name__ == '__main__':
 	print(dlitems.gethtml())
 
 	exit(0)
+	"""
 

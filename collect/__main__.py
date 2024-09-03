@@ -44,7 +44,7 @@ def main() -> int:
 		filepath_cache_directory=collectbot.filepath_cache_directory,
 		filepath_image_directory=collectbot.filepath_image_directory,
 		filepath_config_directory=collectbot.filepath_config_directory,
-		refresh_time=4 * 60 * 60,
+		refresh_time=collectbot._config["ebay-refresh-time"],
 		user_agent=collectbot.user_agent
 	)
 	ebay_auctions.load_auctions()
