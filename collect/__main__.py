@@ -28,7 +28,6 @@ def main() -> int:
 	#print(args.accumulate(args.integers))
 	#exit(0)
 
-
 	if not load_dotenv():
 		raise ValueError("Failed to load the .env file.")
 
