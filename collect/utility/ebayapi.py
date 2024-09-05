@@ -33,8 +33,8 @@ class AuctionListing(NamedTuple):
 	title: str
 	url: str
 	ending_soon: bool
-	image: str
 	end_datetime: datetime
+	image: str
 
 class eBayAPIHelper:
 	def __init__(self):
@@ -266,8 +266,12 @@ class EBayAuctions:
 		)
 		return str(Path('i') / path_obj.name)
 
-	def top_item_to_auction_listing(self, item: dict[str, any], epn_category: str,
-							 download_images: bool = True) -> AuctionListing:
+	def top_item_to_auction_listing(
+			self,
+			item: dict[str, any],
+			epn_category: str,
+			download_images: bool = True) -> AuctionListing:
+
 		if not item:
 			raise ValueError("Item not set.")
 

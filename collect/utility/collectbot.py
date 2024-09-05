@@ -1,23 +1,23 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 
-from datetime import datetime, timezone
-from io import StringIO
 import json
 import logging
 import markdown
+
 from random import randint
-
 from os import path
-
+from datetime import datetime, timezone
+from io import StringIO
 from typing import Optional
-from .core.html_template_processor import HtmlTemplateProcessor
-from .core.rss_tool import RssTool
+
 from .aws_helper import AwsCFHelper, AwsS3Helper
-from .collectbot_template import CollectBotTemplate
 from .ebayapi import EBayAuctions, AuctionListing
 from .filepathtools import FilePathTools
 from .listitem import TimeItem, IntItem, UnorderedList, TimeItem, StrItem, LinkItem, DescriptionList
+from .collectbot_template import CollectBotTemplate
+from .core.html_template_processor import HtmlTemplateProcessor
+from .core.rss_tool import RssTool
 
 logger = logging.getLogger(__name__)
 

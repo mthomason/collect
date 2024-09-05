@@ -81,7 +81,6 @@ class PromptPersonalityAuctioneer(PromptPersonality):
 			raise ValueError(s)
 		return api_key
 
-
 	def __del__(self):
 		self.headlines.clear()
 
@@ -142,7 +141,6 @@ class PromptPersonalityAuctioneer(PromptPersonality):
 		assert len(requested_headline_ids) == len(uncached_headline_ids) + len(self._fetch_headlines_from_cache(requested_headline_ids)), \
 			"Mismatch in headline counts."
 
-
 		if uncached_headline_ids:
 			uncached_headlines: list[dict[str,str]] = [
 				self.headlines[requested_headline_ids.index(id_)]
@@ -166,7 +164,9 @@ class PromptPersonalityAuctioneer(PromptPersonality):
 
 			try:
 				response_data: dict[str, any] = self._request_openai_headlines(json_data)
-				headlines: list[dict[str, str]] = json.loads(response_data['choices'][0]['message']['function_call']['arguments'])['headlines']
+				headlines: list[dict[str, str]] = json.loads(
+					response_data['choices'][0]['message']['function_call']['arguments']
+				)['headlines']
 				self._cache_headlines(headlines)
 				headlines.extend(self._fetch_headlines_from_cache(cached_headline_ids))
 				return iter(headlines)
@@ -175,16 +175,18 @@ class PromptPersonalityAuctioneer(PromptPersonality):
 				s: str = f"API request failed: {type(e).__name__} - {e}"
 				logger.error(s)
 				raise ChildProcessError(s) from e
+
 			except (json.JSONDecodeError, KeyError) as e:
 				s: str = f"Error parsing API response: {type(e).__name__} - {e}"
 				logger.error(s)
 				raise ChildProcessError(s) from e
+
 			except Exception as e:
 				s: str = f"Unexpected error: {type(e).__name__} - {e}"
 				logger.error(s)
 				raise RuntimeError(s) from e
 
-		else:  # If all headlines are cached, return them
+		else:
 			return iter(self._fetch_headlines_from_cache(requested_headline_ids))
 
 if __name__ == "__main__":
