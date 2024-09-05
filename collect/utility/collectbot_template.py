@@ -1,18 +1,18 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 
-from datetime import datetime, timezone
-from io import StringIO
-from os import path
 import logging
 import markdown
 
-from .listitem import ListItem, TimeItem, IntItem, UnorderedList
-from .listitem import UnorderedList, DescriptionList, TimeItem, IntItem, StrItem, LinkItem, ListItemsCollection
+from datetime import datetime, timezone
+from io import StringIO
+from typing import Generator, Callable, Final
+from os import path
+
+from .listitem import ListItemsCollection
 from .ebayapi import EBayAuctions, AuctionListing, AuctionListingSimple
 from .core.html_template_processor import HtmlTemplateProcessor
 from .core.string_adorner import StringAdorner, HtmlWrapper
-from typing import Generator, Callable, Final
 
 logger = logging.getLogger(__name__)
 
@@ -104,7 +104,8 @@ class CollectBotTemplate:
 			auction_listings: list[AuctionListingSimple] = ebay._search_results_to_html(
 				items=auction['items'],
 				epn_category=auction['epn-category'],
-				exclude=exclude)
+				exclude=exclude
+			)
 
 			html_: str = ""
 			for listing in auction_listings:
@@ -191,8 +192,9 @@ class CollectBotTemplate:
 	def make_above_fold_links(links: list[AuctionListing]) -> str:
 		buf: StringIO = StringIO()
 		time: str = ""
+		attribs: dict = {}
 		for link in links:
-			attribs: dict = { "href": link.url }
+			attribs["href"] = link.url
 			if link.ending_soon:
 				attribs["class"] = "aending"
 				time = CollectBotTemplate.html_wrapper(
@@ -204,12 +206,15 @@ class CollectBotTemplate:
 						"datetime": link.end_datetime.isoformat()
 					}
 				)
+			else:
+				time = ""
 			
 			title: str = CollectBotTemplate.strip_outter_tag(markdown.markdown(link.title))
-			link: str = CollectBotTemplate.html_wrapper(tag="a", content=title, attributes=attribs)
-			link = CollectBotTemplate.html_wrapper(tag="li", content=(link + time))
-			buf.write(link)
+			link_html: str = CollectBotTemplate.html_wrapper(tag="a", content=title, attributes=attribs)
+			link_html = CollectBotTemplate.html_wrapper(tag="li", content=(link_html + time))
+			buf.write(link_html)
 			buf.write("\n")
+			attribs.clear()
 
 		html_: str = buf.getvalue()
 		buf.close()
