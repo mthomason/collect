@@ -81,6 +81,8 @@ class GptFunctionPrompt:
 
 	@classmethod
 	def from_dict(cls, data: dict[str, any]) -> 'GptFunctionPrompt':
+		fun: dict[str, any] = data["function"]
+		fparams: dict[str, any] = fun["parameters"]
 		properties = {
 			name: GptFunctionProperty(
 				name=name,
@@ -98,27 +100,12 @@ class GptFunctionPrompt:
 					}
 				)
 			)
-			for name, prop in data["function"]["parameters"]["properties"].items()
+			for name, prop in fparams["properties"].items()
 		}
 
-		params = GptFunctionParams(
-			type=data["function"]["parameters"]["type"],
-			required=data["function"]["parameters"]["required"],
-			properties=properties
-		)
-
-		function = GptFunction(
-			name=data["function"]["name"],
-			description=data["function"]["description"],
-			parameters=params
-		)
-
-		return cls(
-			name=data["name"],
-			context=data["context"],
-			prompt=data["prompt"],
-			function=function
-		)
+		params = GptFunctionParams(fparams["type"], fparams["required"], properties)
+		function = GptFunction(fun["name"], fun["description"], params)
+		return cls(data["name"], data["context"], data["prompt"], function)
 
 if __name__ == "__main__":
 	raise ValueError("This script is not meant to be run directly.")
