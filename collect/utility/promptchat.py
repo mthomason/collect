@@ -27,18 +27,6 @@ class PromptPersonality(ABC):
 	def generate_response(self, prompt: str) -> str:
 		pass
 
-class PromptPersonalityFunctional(PromptPersonality):
-	_cache_pruned: bool = False
-	def __init__(self, name: str, context: str, prompts: list[str], functions: list[dict[str, any]]):
-		super().__init__(name, context, prompts, functions)
-		self._cache: JSONDataCache = JSONDataCache(f"cache/{self._uuid.lower()}_prompt_cache.json")
-		if not self._cache_pruned:
-			self._cache.prune_and_save()
-			self._cache_pruned = True
-
-		self.results: list[dict[str, str]] = []
-
-
 class PromptPersonalityAuctioneer(PromptPersonality):
 	_cache_pruned: bool = False
 	def __init__(self):
@@ -130,7 +118,6 @@ class PromptPersonalityAuctioneer(PromptPersonality):
 		}
 		response = requests.post(url=url, headers=headers, json=json_data)
 		return self._handle_api_response(response)
-
 
 	def get_headlines(self) -> iter:
 		
