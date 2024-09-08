@@ -10,6 +10,7 @@ import logging
 from .apicache import APICache
 from .aws_helper import AwsS3Helper
 from .core.imagecache import ImageCache
+from .core.jsondatacache import JSONDataCache
 from .promptchat import PromptPersonalityAuctioneer
 from datetime import datetime, timezone, timedelta
 from ebaysdk.finding import Connection as Finding
@@ -124,6 +125,8 @@ class EBayAuctions:
 		self._refresh_time: int = refresh_time
 		self._cache_dir = filepath_cache_directory
 		self._user_agent: str | None = user_agent
+		self._hl_cache: JSONDataCache = JSONDataCache("cache/auctioneer_headlines.json")
+		self._hl_cache.prune_and_save()
 
 		auctions_list: str = path.join(filepath_config_directory, "auctions-ebay.json")
 		with open(auctions_list, "r") as file:
@@ -276,17 +279,22 @@ class EBayAuctions:
 			raise ValueError("Item not set.")
 
 		"""Have the auctioneer generate a headline for the item."""
-		auctioneer: PromptPersonalityAuctioneer = PromptPersonalityAuctioneer()
-		auctioneer.add_headline(id=item['itemId'], headline=item['title'])
-		headlines_iterator = auctioneer.get_headlines()
 
-		"""Get the first headline from the auctioneer.  There should only be one."""
 		title: str = ""
-		for headline in headlines_iterator:
-			title = headline['headline']
-			break
+		if self._hl_cache.record_exists(item['itemId']):
+			title = self._hl_cache.find_record_by_id(item['itemId'])['headline']
+		else:
+			auctioneer: PromptPersonalityAuctioneer = PromptPersonalityAuctioneer()
+			auctioneer.add_headline(id=item['itemId'], headline=item['title'])
+			headlines_iterator = auctioneer.get_headlines()
 
-		del auctioneer
+			"""Get the first headline from the auctioneer.  There should only be one."""
+			for headline in headlines_iterator:
+				title = headline['headline']
+				self._hl_cache.add_record(title=title, record_id=item['itemId'])
+				break
+
+			del auctioneer
 
 		item_url: str = item['viewItemURL']
 		epn_url: str = eBayAPIHelper.generate_epn_link(item_url, epn_category)
@@ -318,20 +326,26 @@ class EBayAuctions:
 		item: dict = None
 		item_id: str = ""
 		ctr: int = 0
+		headlines_ids: dict[str, str] = {}
 
 		auctioneer: PromptPersonalityAuctioneer = PromptPersonalityAuctioneer()
+		uncached_count: int = 0
 		for item in items:
 			item_id = item['itemId']
 			if exclude and item_id in exclude:
 				continue
+			
+			if not self._hl_cache.record_exists(item_id):
+				auctioneer.add_headline(id=item_id, headline=item['title'])
+				uncached_count += 1
+			else:
+				headlines_ids[item_id] = self._hl_cache.find_title_by_id(item_id)
 
-			auctioneer.add_headline(id=item_id, headline=item['title'])
-
-		headlines_ids: dict[str, str] = {}
-		headlines_iterator = auctioneer.get_headlines()
-
-		for headline in headlines_iterator:
-			headlines_ids[headline['identifier']] = headline['headline']
+		if uncached_count > 0:
+			headlines_iterator = auctioneer.get_headlines()
+			for headline in headlines_iterator:
+				headlines_ids[headline['identifier']] = headline['headline']
+				self._hl_cache.add_record(headline['headline'], headline['identifier'])
 
 		del auctioneer
 
