@@ -2,32 +2,32 @@
 	"name": "headlines_function",
 	"description": "Proof read the auction headlines and rewrite each headline for publication.",
 	"parameters": {
-	  "type": "object",
-	  "properties": {
-		"headlines": {
-		  "type": "array",
-		  "description": "The headlines to file for publication.",
-		  "items": {
-			"type": "object",
-			"properties": {
-			  "headline": {
-				"type": "string",
-				"description": "A headline."
-			  },
-			  "identifier": {
-				"type": "string",
-				"description": "The headline identifier."
-			  }
-			},
-			"required": [
-			  "headline",
-			  "identifier"
-			]
-		  }
-		}
-	  },
-	  "required": [
-		"headlines"
-	  ]
+		"type": "object",
+		"properties": {
+			"headlines": {
+				"type": "array",
+				"description": "The headlines to file for publication.",
+				"items": {
+					"type": "object",
+					"properties": {
+						"headline": {
+							"type": "string",
+							"description": "A headline."
+						},
+						"identifier": {
+							"type": "string",
+							"description": "The headline identifier."
+						}
+					},
+					"required": [
+						"headline",
+						"identifier"
+					]
+				}
+			}
+		},
+		"required": [
+			"headlines"
+		]
 	}
-  }
+}
