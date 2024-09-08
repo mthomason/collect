@@ -5,7 +5,7 @@ import logging
 import json
 import requests
 
-from gpt_function_prompt import GptFunctionPrompt, GptFunctionProperty
+from .gpt_function_prompt import GptFunctionPrompt, GptFunctionProperty
 from io import StringIO
 from typing import overload
 
@@ -29,7 +29,6 @@ class PromptPersonalityFunctional:
 			add_prompt_item_data(*items: tuple[str, ...]) -> None: Add a list of items to the prompt.
 			get_results() -> Iterator[dict[str, str]]: Get the results from the chat completion.
 
-		Note: The dictionary items must match the required function parameters.
 	"""
 
 	def __init__(
