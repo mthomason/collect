@@ -7,11 +7,11 @@ import urllib.parse
 import json
 import logging
 
+from .formatted_prompt import PromptPersonalityFunctional, GptFunctionPrompt
 from .apicache import APICache
 from .aws_helper import AwsS3Helper
 from .core.imagecache import ImageCache
 from .core.jsondatacache import JSONDataCache
-from .promptchat import PromptPersonalityAuctioneer
 from datetime import datetime, timezone, timedelta
 from ebaysdk.finding import Connection as Finding
 from ebaysdk.exception import ConnectionError
@@ -283,18 +283,22 @@ class EBayAuctions:
 		title: str = ""
 		if self._hl_cache.record_exists(item['itemId']):
 			title = self._hl_cache.find_record_by_id(item['itemId'])['headline']
+
 		else:
-			auctioneer: PromptPersonalityAuctioneer = PromptPersonalityAuctioneer()
-			auctioneer.add_headline(id=item['itemId'], headline=item['title'])
-			headlines_iterator = auctioneer.get_headlines()
-
-			"""Get the first headline from the auctioneer.  There should only be one."""
-			for headline in headlines_iterator:
-				title = headline['headline']
-				self._hl_cache.add_record(title=title, record_id=item['itemId'])
-				break
-
-			del auctioneer
+			with open("prompts/function_obtain_identity.json", "r") as file:
+				function_def = json.load(file)
+				prompt: GptFunctionPrompt = GptFunctionPrompt.from_dict(function_def)
+				fprompt: PromptPersonalityFunctional = PromptPersonalityFunctional(
+					apikey=os.getenv("OPENAI_API_KEY"),
+					prompt=prompt
+				)
+				fprompt.add_prompt_item_data((item['itemId'], item['title']),)
+				results: list[dict[str, str]] = fprompt.get_results()
+				for result in results:
+					result["identifier"]
+					title = result["headline"]
+					self._hl_cache.add_record(title=title, record_id=result["identifier"])
+					break
 
 		item_url: str = item['viewItemURL']
 		epn_url: str = eBayAPIHelper.generate_epn_link(item_url, epn_category)
@@ -328,26 +332,35 @@ class EBayAuctions:
 		ctr: int = 0
 		headlines_ids: dict[str, str] = {}
 
-		auctioneer: PromptPersonalityAuctioneer = PromptPersonalityAuctioneer()
-		uncached_count: int = 0
-		for item in items:
-			item_id = item['itemId']
-			if exclude and item_id in exclude:
-				continue
+		with open("prompts/function_obtain_identity.json", "r") as file:
+			function_def = json.load(file)
+			prompt: GptFunctionPrompt = GptFunctionPrompt.from_dict(function_def)
+			fprompt: PromptPersonalityFunctional = PromptPersonalityFunctional(
+				apikey=os.getenv("OPENAI_API_KEY"),
+				prompt=prompt
+			)
+
+			uncached_count: int = 0
+			for item in items:
+				item_id = item['itemId']
+				if exclude and item_id in exclude:
+					continue
 			
-			if not self._hl_cache.record_exists(item_id):
-				auctioneer.add_headline(id=item_id, headline=item['title'])
-				uncached_count += 1
-			else:
-				headlines_ids[item_id] = self._hl_cache.find_title_by_id(item_id)
+				if not self._hl_cache.record_exists(item_id):
+					fprompt.add_prompt_item_data((item_id, item['title']),)
+					uncached_count += 1
+				else:
+					headlines_ids[item_id] = self._hl_cache.find_title_by_id(item_id)
 
-		if uncached_count > 0:
-			headlines_iterator = auctioneer.get_headlines()
-			for headline in headlines_iterator:
-				headlines_ids[headline['identifier']] = headline['headline']
-				self._hl_cache.add_record(headline['headline'], headline['identifier'])
+			if uncached_count > 0:
+				results: list[dict[str, str]] = fprompt.get_results()
+				for result in results:
+					headlines_ids[result['identifier']] = result['headline']
+					self._hl_cache.add_record(result['headline'], result['identifier'])
 
-		del auctioneer
+
+				fprompt.add_prompt_item_data((item['itemId'], item['title']),)
+				results: list[dict[str, str]] = fprompt.get_results()
 
 		for item in items:
 			item_id = item['itemId']
