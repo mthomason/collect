@@ -3,14 +3,44 @@
 
 import logging
 import json
-import argparse
+import os
+#import argparse
 from dotenv import load_dotenv
 from os import path
 from collect.utility.core.logging_config import setup_logging
 from collect.utility.ebayapi import EBayAuctions
 from collect.utility.collectbot import CollectBot
+from collect.utility.formatted_prompt import PromptPersonalityFunctional, GptFunctionPrompt
 
 def main() -> int:
+
+	if not load_dotenv():
+		raise ValueError("Failed to load the .env file.")
+
+	"""
+
+	with open("prompts/function_obtain_identity.json", "r") as file:
+		function_def = json.load(file)
+
+	fp: GptFunctionPrompt = GptFunctionPrompt.from_dict(function_def)
+	ppf: PromptPersonalityFunctional = PromptPersonalityFunctional(
+		apikey=os.getenv("OPENAI_API_KEY"),
+		prompt=fp
+	)
+
+	ppf.add_prompt_item_data(
+		("id-1", "2023-2024 Topps Chrome Basketball On-Card Auto Victor Wembanyama Black #7/10!"),
+		("id-2", "2018 Bowman Chrome Shohei Ohtani Rookie Card #SO - PSA 10 Autograph"),
+		("id-3", "Steph Curry, LeBron James, and Kevin Durant - 2024 Topps Now Olympic Sealed Pack 1/1"),
+	)
+
+	results: list[dict[str, str]] = ppf.get_results()
+	for result in results:
+		for key, value in result.items():
+			print(f"{key}: {value}")
+
+
+	"""
 
 	#parser = argparse.ArgumentParser(
 	#	prog='collectbot',
@@ -27,9 +57,6 @@ def main() -> int:
 	#args = parser.parse_args()
 	#print(args.accumulate(args.integers))
 	#exit(0)
-
-	if not load_dotenv():
-		raise ValueError("Failed to load the .env file.")
 
 	app_config: dict[str, any] = None
 	with open("config/config.json", "r") as file:
