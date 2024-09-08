@@ -1,22 +1,13 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 
-from io import StringIO
-from dataclasses import dataclass, field, asdict
+from dataclasses import dataclass, field
 
 @dataclass
 class GptFunctionItemProperty:
 	name: str
 	type: str
 	description: str
-
-	@classmethod
-	def from_dict(cls, name: str, p: dict[str, str]) -> 'GptFunctionItemProperty':
-		return cls(
-			name=name,
-			type=p["type"],
-			description=p["description"]
-		)
 
 	def to_dict(self) -> dict[str, str]:
 		return { "type": self.type, "description": self.description }
@@ -26,15 +17,6 @@ class GptFunctionItems:
 	type: str
 	required: list[str] = field(default_factory=list)
 	properties: dict[str, GptFunctionItemProperty] = field(default_factory=dict)
-
-	@classmethod
-	def from_dict(cls, f: dict[str, any]) -> 'GptFunctionItems':
-		properties = {r: GptFunctionItemProperty.from_dict(r, f["properties"][r]) for r in f["required"]}
-		return cls(
-			type=f["type"],
-			required=f["required"],
-			properties=properties
-		)
 
 	def to_dict(self) -> dict[str, any]:
 		properties: dict[str, dict[str, str]] = {}
@@ -52,15 +34,6 @@ class GptFunctionProperty:
 	type: str
 	description: str
 	items: GptFunctionItems
-	
-	@classmethod
-	def from_dict(cls, name: str, p: dict[str, any]) -> 'GptFunctionProperty':
-		return cls(
-			name=name,
-			type=p["type"],
-			description=p["description"],
-			items=GptFunctionItems.from_dict(p["items"])
-		)
 
 	def to_dict(self) -> dict[str, any]:
 		return {
@@ -75,24 +48,11 @@ class GptFunctionParams:
 	required: list[str] = field(default_factory=list)
 	properties: dict[str, GptFunctionProperty] = field(default_factory=dict)
 
-	@classmethod
-	def from_dict(cls, data: dict[str, any]) -> 'GptFunctionParams':
-		properties: dict[str, GptFunctionProperty] = {}
-		for name, prop in data["properties"].items():
-			properties[name] = GptFunctionProperty.from_dict(
-				name=name,
-				p=prop
-			)
-		return cls(
-			type=data["type"],
-			required=data["required"],
-			properties=properties
-		)
-
 	def to_dict(self) -> dict[str, any]:
 		properties: dict[str, dict[str, any]] = {}
 		for name, prop in self.properties.items():
 			properties[name] = prop.to_dict()
+
 		return {
 			"type": self.type,
 			"required": self.required,
@@ -105,14 +65,6 @@ class GptFunction:
 	description: str
 	parameters: GptFunctionParams
 	
-	@classmethod
-	def from_dict(cls, data: dict[str, any]) -> 'GptFunction':
-		return cls(
-			name=data["name"],
-			description=data["description"],
-			parameters=GptFunctionParams.from_dict(data["parameters"])
-		)
-
 	def to_dict(self) -> dict[str, any]:
 		return {
 			"name": self.name,
@@ -129,11 +81,43 @@ class GptFunctionPrompt:
 
 	@classmethod
 	def from_dict(cls, data: dict[str, any]) -> 'GptFunctionPrompt':
+		properties = {
+			name: GptFunctionProperty(
+				name=name,
+				type=prop["type"],
+				description=prop["description"],
+				items=GptFunctionItems(
+					type=prop["items"]["type"],
+					required=prop["items"]["required"],
+					properties={
+						r: GptFunctionItemProperty(
+							name=r,
+							type=prop["items"]["properties"][r]["type"],
+							description=prop["items"]["properties"][r]["description"]
+						) for r in prop["items"]["required"]
+					}
+				)
+			)
+			for name, prop in data["function"]["parameters"]["properties"].items()
+		}
+
+		params = GptFunctionParams(
+			type=data["function"]["parameters"]["type"],
+			required=data["function"]["parameters"]["required"],
+			properties=properties
+		)
+
+		function = GptFunction(
+			name=data["function"]["name"],
+			description=data["function"]["description"],
+			parameters=params
+		)
+
 		return cls(
 			name=data["name"],
 			context=data["context"],
 			prompt=data["prompt"],
-			function=GptFunction.from_dict(data["function"])
+			function=function
 		)
 
 if __name__ == "__main__":
