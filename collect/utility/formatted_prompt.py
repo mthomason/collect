@@ -59,7 +59,9 @@ class PromptPersonalityFunctional:
 		buffer_prompt.write("\n```json\n")
 		buffer_prompt.write(prompt_data)
 		buffer_prompt.write("\n```\n\n")
-		return buffer_prompt.getvalue()
+		s: str = buffer_prompt.getvalue()
+		buffer_prompt.close()
+		return s
 
 	def _handle_api_response(self, response: requests.Response) -> dict[str, any]:
 		if response.status_code != 200:

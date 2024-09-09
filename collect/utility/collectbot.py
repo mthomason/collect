@@ -30,7 +30,7 @@ class CollectBot:
 			ebay_auctions: Optional[EBayAuctions] = None):
 		assert app_name, "App name is required."
 		assert app_config, "App config is required."
-		self.collectbot_template: CollectBotTemplate = CollectBotTemplate()
+		self._template: CollectBotTemplate = CollectBotTemplate()
 		self._config: dict[str, any] = {}
 		self._markdown_extensions: list[str] = ['attr_list']
 		self._app_name: str = app_name
@@ -163,23 +163,20 @@ class CollectBot:
 			topitem,
 			epn_category=self.epn_category_headline_link
 		)
-		img: str = CollectBotTemplate.make_featured_image(
-			top_listing.image,
-			"Featured Auction"
-		)
+		img: str = CollectBotTemplate.make_featured_image(top_listing.image, "Featured Auction")
 		top_listing_class: str = "th"
 		if top_listing.ending_soon:
 			top_listing_class = "thending"
 
-		title: str = CollectBotTemplate.strip_outter_tag(
-			markdown.markdown(top_listing.title)
-		)
+		title: str = CollectBotTemplate.strip_outter_tag(markdown.markdown(top_listing.title))
 		attribs: dict[str, str] = {
 			"href": top_listing.url,
 			"class": top_listing_class
 		}
 		link: str = CollectBotTemplate.html_wrapper(
-			tag="a", content=title, attributes=attribs
+			tag="a",
+			content=title,
+			attributes=attribs
 		)
 		link = CollectBotTemplate.html_wrapper(tag="p", content=link)
 
@@ -199,9 +196,9 @@ class CollectBot:
 				body=top_item_md
 			)
 		)
-		auctions: str = CollectBotTemplate.auctions_to_html(
+		auctions: str = self._template.auctions_to_html(
 			self._ebay_auctions, exclude=exclude
-		) 
+		)
 
 		buffer_html_news: StringIO = StringIO()
 		buffer_html_news.write(CollectBotTemplate.make_section_header("News"))
@@ -218,27 +215,18 @@ class CollectBot:
 
 	def _create_html_footer(self) -> str:
 		dlitems = DescriptionList()
-		dlitems.additem(StrItem(
-			title="Site",
-			value=self._config["site-title"]
-		))
-		dlitems.additem(StrItem(
-			title="Link",
-			value=self._config["canonical-url"]
-		))
+		dlitems.additem(StrItem("Site", self._config["site-title"]))
+		dlitems.additem(StrItem("Link", self._config["canonical-url"]))
 		dlitems.additem(IntItem(title="Edition", value=self.edition))
 		dlitems.additem(TimeItem(title="Last Updated", value=datetime.now()))
 		footer_html: str = CollectBotTemplate.make_footer(title="Links", items=dlitems)
-		
-		end_html: str = CollectBotTemplate.create_html_end(
-			self.filepath_template_directory
-		)
+		end_html: str = CollectBotTemplate.create_html_end(self.filepath_template_directory)
 		return footer_html + end_html
 
 	def create_sitemap(self, urls: list[str]):
 		filepath_output:str = path.join(self.filepath_output_directory, "sitemap.xml")
 		with open(filepath_output, 'w', encoding="utf-8") as file:
-			file.write(self.collectbot_template.create_sitemap(urls))
+			file.write(self._template.create_sitemap(urls))
 			logger.info(f"File {filepath_output} created.")
 
 	def create_style_sheet(self):

@@ -91,8 +91,8 @@ class CollectBotTemplate:
 		buffer_html.truncate(0)
 		buffer_html.close()
 		return result
-
-	def auctions_to_html(ebay: EBayAuctions, exclude: list[str]) -> str:
+	
+	def auctions_to_html(self, ebay: EBayAuctions, exclude: list[str]) -> str:
 		bufauct: StringIO = StringIO()
 		bufauct.write(CollectBotTemplate.make_section_header("Auctions"))
 

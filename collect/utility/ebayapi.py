@@ -332,14 +332,11 @@ class EBayAuctions:
 		ctr: int = 0
 		headlines_ids: dict[str, str] = {}
 
-		with open("prompts/function_obtain_identity.json", "r") as file:
+		with open("prompts/function_headlines.json", "r") as file:
 			function_def = json.load(file)
-			prompt: GptFunctionPrompt = GptFunctionPrompt.from_dict(function_def)
-			fprompt: PromptPersonalityFunctional = PromptPersonalityFunctional(
-				apikey=os.getenv("OPENAI_API_KEY"),
-				prompt=prompt
-			)
-
+			prompt = GptFunctionPrompt.from_dict(function_def)
+			fprompt = PromptPersonalityFunctional(os.getenv("OPENAI_API_KEY"), prompt)
+		
 			uncached_count: int = 0
 			for item in items:
 				item_id = item['itemId']
