@@ -1,7 +1,7 @@
 {
 	"name": "online_auctioneer",
 	"context": "You are a writer for an online hobby magazine.",
-	"prompt": "Refactor and rewrite these popluar auction listings for publication. Use consistent and professional language. Remove redundant terms and unnecessary capitalization. Remove emojis. Remove eBay gimics and the name of the listing account. Use `**bold**` and `*italic*` formatting to highlight key principals and products. Remove unnecessary details like condition.\n\n**Headlines**\n\n",
+	"prompt": "Rewrite these popluar auction listings. Use consistent language. Remove redundant terms, unnecessary capitalization, emojis, eBay gimics, the name of the listing account, and condition information. Use `**bold**` and `*italic*` formatting to highlight players and product names. Call this function with new headlines and the ID.\n\n**Listings**\n\n",
 	"function": {
 		"name": "headlines_function",
 		"description": "Rewrite each headline for publication.",
@@ -10,7 +10,7 @@
 			"properties": {
 				"headlines": {
 					"type": "array",
-					"description": "The headlines to file for publication.",
+					"description": "The new headlines and identifiers.",
 					"items": {
 						"type": "object",
 						"properties": {
