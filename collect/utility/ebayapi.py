@@ -285,14 +285,14 @@ class EBayAuctions:
 			title = self._hl_cache.find_record_by_id(item['itemId'])['headline']
 
 		else:
-			with open("prompts/function_obtain_identity.json", "r") as file:
+			with open("prompts/function_headlines.json", "r") as file:
 				function_def = json.load(file)
 				prompt: GptFunctionPrompt = GptFunctionPrompt.from_dict(function_def)
 				fprompt: PromptPersonalityFunctional = PromptPersonalityFunctional(
 					apikey=os.getenv("OPENAI_API_KEY"),
 					prompt=prompt
 				)
-				fprompt.add_prompt_item_data((item['itemId'], item['title']),)
+				fprompt.add_prompt_item_data((item['title'], item['itemId']),)
 				results: list[dict[str, str]] = fprompt.get_results()
 				for result in results:
 					result["identifier"]
@@ -344,7 +344,7 @@ class EBayAuctions:
 					continue
 			
 				if not self._hl_cache.record_exists(item_id):
-					fprompt.add_prompt_item_data((item_id, item['title']),)
+					fprompt.add_prompt_item_data((item['title'], item_id),)
 					uncached_count += 1
 				else:
 					headlines_ids[item_id] = self._hl_cache.find_title_by_id(item_id)
@@ -356,7 +356,7 @@ class EBayAuctions:
 					self._hl_cache.add_record(result['headline'], result['identifier'])
 
 
-				fprompt.add_prompt_item_data((item['itemId'], item['title']),)
+				fprompt.add_prompt_item_data((item['title'], item['itemId']),)
 				results: list[dict[str, str]] = fprompt.get_results()
 
 		for item in items:

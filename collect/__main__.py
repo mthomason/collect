@@ -25,6 +25,7 @@ def main() -> int:
 	logger.info("Application started")
 
 	collectbot: CollectBot = CollectBot("Hobby Report", app_config)
+
 	ebay_auctions: EBayAuctions = EBayAuctions(
 		filepath_cache_directory=collectbot.filepath_cache_directory,
 		filepath_image_directory=collectbot.filepath_image_directory,

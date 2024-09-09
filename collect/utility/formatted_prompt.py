@@ -61,6 +61,7 @@ class PromptPersonalityFunctional:
 		buffer_prompt.write("\n```\n\n")
 		s: str = buffer_prompt.getvalue()
 		buffer_prompt.close()
+		logger.info(f"Generated prompt: {s}")
 		return s
 
 	def _handle_api_response(self, response: requests.Response) -> dict[str, any]:
