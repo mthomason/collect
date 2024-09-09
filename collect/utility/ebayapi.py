@@ -337,7 +337,6 @@ class EBayAuctions:
 			prompt = GptFunctionPrompt.from_dict(function_def)
 			fprompt = PromptPersonalityFunctional(os.getenv("OPENAI_API_KEY"), prompt)
 		
-			uncached_count: int = 0
 			for item in items:
 				item_id = item['itemId']
 				if exclude and item_id in exclude:
@@ -345,19 +344,14 @@ class EBayAuctions:
 			
 				if not self._hl_cache.record_exists(item_id):
 					fprompt.add_prompt_item_data((item['title'], item_id),)
-					uncached_count += 1
 				else:
 					headlines_ids[item_id] = self._hl_cache.find_title_by_id(item_id)
 
-			if uncached_count > 0:
+			if len(fprompt) > 0:
 				results: list[dict[str, str]] = fprompt.get_results()
 				for result in results:
 					headlines_ids[result['identifier']] = result['headline']
 					self._hl_cache.add_record(result['headline'], result['identifier'])
-
-
-				fprompt.add_prompt_item_data((item['title'], item['itemId']),)
-				results: list[dict[str, str]] = fprompt.get_results()
 
 		for item in items:
 			item_id = item['itemId']

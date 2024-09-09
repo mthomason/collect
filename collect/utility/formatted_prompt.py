@@ -43,6 +43,18 @@ class PromptPersonalityFunctional:
 		self._model = model
 		self._prompt: GptFunctionPrompt = prompt
 		self._prompt_items: list[dict[str, str]] = []
+
+	def __len__(self) -> int:
+		return len(self._prompt_items)
+	
+	def __getitem__(self, index: int) -> dict[str, str]:
+		return self._prompt_items[index]
+	
+	def __setitem__(self, index: int, value: dict[str, str]) -> None:
+		self._prompt_items[index] = value
+
+	def __delitem__(self, index: int) -> None:
+		del self._prompt_items[index]
 	
 	def _validate_prompt_item(self, item: dict[str, str]) -> bool:
 		return all(key in item for key in self._fun_object_properties())
