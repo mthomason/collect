@@ -5,7 +5,8 @@ import logging
 
 from datetime import datetime, timezone
 from dataclasses import dataclass
-from abc import ABC, abstractmethod
+from abc import ABC, abstractmethod, ABCMeta
+
 from .core.string_adorner import StringAdorner, HtmlWrapper
 from enum import Enum
 from typing import Generator
@@ -17,7 +18,7 @@ class ListType(Enum):
 	Ordered = 2
 	Description = 3
 
-class ListItem(ABC):
+class ListItem(metaclass=ABCMeta):
 	title: str
 	value: any
 	ltype: ListType
@@ -54,8 +55,6 @@ class ListItem(ABC):
 	def getstring(self) -> str: pass
 
 class TimeItem(ListItem):
-	title: str
-	value: datetime
 
 	def __init__(self, title: str, value: datetime,
 				 ltype: ListType = ListType.Unordered):
@@ -77,7 +76,6 @@ class TimeItem(ListItem):
 			case ListType.Description:
 				return HtmlWrapper.wrap_html(self.getvaluestr(), "dd", {})
 		return str(self.value)
-	
 
 	def getstring(self) -> str:
 		return self.value.strftime("%Y-%m-%d %H:%M:%S")
@@ -244,7 +242,6 @@ class DescriptionList(ListItemsCollection):
 	@StringAdorner.wrap_html("dl", {})
 	def gethtml(self) -> str:
 		return super().gethtml()
-
 
 if __name__ == '__main__':
 	raise("This module is not meant to be run as a script.")

@@ -9,17 +9,22 @@ import xml.etree.ElementTree as ElementTree
 from xml.etree.ElementTree import Element
 
 from .fetch_bot import FetchBot
+from .caching_robot_file_parser import CachingRobotFileParser
 from datetime import datetime, timedelta
 from requests.models import Response
 from typing import Generator
 
 class RssTool:
-	def __init__(self, user_agent: str, urls: list[str] | None = None,
-				 url: str | None = None,
-				 cache_duration: int = 28800,
-				 max_results: int = 10, cache_directory: str ="cache",
-				 cache_file: str = "rss_cache.json",
-				 max_cache_size: int = 20):
+	def __init__(
+			self,
+			user_agent: str,
+			urls: list[str] | None = None,
+			url: str | None = None,
+			cache_duration: int = 28800,
+			max_results: int = 10, cache_directory: str ="cache",
+			cache_file: str = "rss_cache.json",
+			max_cache_size: int = 20
+		):
 
 		assert user_agent, "user_agent is required."
 		self._user_agent = user_agent
@@ -64,10 +69,13 @@ class RssTool:
 		new_items: list[dict[str, str]] = []
 
 		for url in self._urls:
-			request_bot: FetchBot = FetchBot(url)
-			if not request_bot.is_allowed_by_robots_txt():
-				raise ValueError("The URL is disallowed by robots.txt.")
+			parser = CachingRobotFileParser(url=url)
+			parser.load_robots_txt()
 
+			if not parser.can_fetch(url=url, useragent=self._user_agent):
+				raise ValueError("The URL is disallowed by robots.txt.")
+			
+			request_bot: FetchBot = FetchBot(url)
 			response: Response = request_bot.fetch()
 
 			if response.status_code != 200:
@@ -86,7 +94,10 @@ class RssTool:
 					"date-added": datetime.now().isoformat()
 				})
 
-		combined_cache = new_items + [item for item in self._cache if item["link"] not in {i["link"] for i in new_items}]
+		combined_cache = new_items + [
+			item for item in self._cache
+			if item["link"] not in {i["link"] for i in new_items}
+		]
 
 		self._last_fetch_time = datetime.now()
 		return combined_cache[:self._max_cache_size]

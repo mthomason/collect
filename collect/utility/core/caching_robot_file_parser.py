@@ -24,9 +24,19 @@ class CachingRobotFileParser:
 			url: str | None = None,
 			cache_directory: str = "cache"
 		):
+		self._domain: str = ""
+		self._scheme: str = "https"
+
 		if not domain and not url:
 			raise ValueError("Either domain or url is required.")
-		self._domain: str = domain or urlparse(url).netloc
+
+		if not domain:
+			url_result: ParseResult = urlparse(url)
+			self._domain: str = url_result.netloc
+			self._scheme: str = url_result.scheme
+		else:
+			self._domain: str = domain
+
 		if not self._domain or '.' not in self._domain:
 			raise ValueError("Invalid domain.")
 		
@@ -54,7 +64,7 @@ class CachingRobotFileParser:
 		return
 
 	def load_robots_txt(self):
-		robots_url: str = f"https://{self._domain}/robots.txt"
+		robots_url: str = f"{self._scheme}://{self._domain}/robots.txt"
 		cache_filepath: str = self.cache_file_path
 		robots_txt: str = ""
 		cache_data: dict = {}
@@ -79,10 +89,7 @@ class CachingRobotFileParser:
 			response: Response = self.get(robots_url)
 			if response.status_code == 200:
 				robots_txt = response.text
-				self._cache_robots_txt(
-					robots_txt,
-					robots_url=robots_url
-				)
+				self._cache_robots_txt(robots_txt, robots_url=robots_url)
 			else:
 				logger.warning(f"Failed to fetch robots.txt from {robots_url}")
 				logger.warning(f"Using empty robots.txt.")
@@ -108,3 +115,6 @@ class CachingRobotFileParser:
 			json.dump(cache_data, cache_file, ensure_ascii=False, indent="\t")
 
 		return cache_data
+
+if __name__ == '__main__':
+	raise("This module is not meant to be run as a script.")
