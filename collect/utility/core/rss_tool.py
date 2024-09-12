@@ -72,7 +72,7 @@ class RssTool:
 			parser = CachingRobotFileParser(url=url)
 			parser.load_robots_txt()
 
-			if not parser.can_fetch(url=url, useragent=self._user_agent):
+			if not parser.can_fetch(url=url, user_agent=self._user_agent):
 				raise ValueError("The URL is disallowed by robots.txt.")
 			
 			request_bot: FetchBot = FetchBot(url)
