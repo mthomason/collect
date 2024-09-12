@@ -14,7 +14,7 @@ from typing import Optional
 from .aws_helper import AwsCFHelper, AwsS3Helper
 from .ebayapi import EBayAuctions, AuctionListing
 from .filepathtools import FilePathTools
-from .listitem import TimeItem, IntItem, UnorderedList, TimeItem, StrItem, LinkItem, DescriptionList
+from .listitem import UnorderedList, TimeItem, IntItem, StrItem, LinkItem, DescriptionList
 from .collectbot_template import CollectBotTemplate
 from .core.html_template_processor import HtmlTemplateProcessor
 from .core.rss_tool import RssTool

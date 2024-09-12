@@ -1,17 +1,13 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 
-import json
 import os
 import platform
 import requests
-import time
 import logging
 
 from requests.models import Request, Response
 from typing import Final
-from urllib.parse import urlparse, ParseResult
-from urllib.robotparser import RobotFileParser
 
 logger = logging.getLogger(__name__)
 
