@@ -149,7 +149,7 @@ Use the integrated terminal in Visual Studio Code to view debug output and logs.
 
 ## Screenshot Placeholder
 
-_Add a screenshot of the generated Hobby Report website here!_
+<img src="assets/hobbyrptscreenshot.png" alt="Screenshot Hobby Report" width="320">
 
 ---
 
