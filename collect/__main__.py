@@ -4,7 +4,6 @@
 import logging
 import json
 import os
-#import argparse
 from dotenv import load_dotenv
 from os import path
 from collect.utility.core.logging_config import setup_logging
@@ -25,7 +24,6 @@ def main() -> int:
 	logger.info("Application started")
 
 	collectbot: CollectBot = CollectBot("Hobby Report", app_config)
-
 	ebay_auctions: EBayAuctions = EBayAuctions(
 		filepath_cache_directory=collectbot.filepath_cache_directory,
 		filepath_image_directory=collectbot.filepath_image_directory,
@@ -40,5 +38,4 @@ def main() -> int:
 	return 0
 
 if __name__ == "__main__":
-	exit_code: int = main()
-	exit(exit_code)
+	exit(main())

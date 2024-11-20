@@ -121,11 +121,11 @@ class EBayAuctions:
 				 user_agent: str | None = None):
 		self._ebay_api: eBayAPIHelper = eBayAPIHelper()
 		self._api_cache: APICache = APICache(filepath_cache_directory)
+		self._hl_cache: JSONDataCache = JSONDataCache("cache/auctioneer_headlines.json")
 		self._image_dir: str = filepath_image_directory
 		self._refresh_time: int = refresh_time
 		self._cache_dir = filepath_cache_directory
 		self._user_agent: str | None = user_agent
-		self._hl_cache: JSONDataCache = JSONDataCache("cache/auctioneer_headlines.json")
 		self._hl_cache.prune_and_save()
 
 		auctions_list: str = path.join(filepath_config_directory, "auctions-ebay.json")
@@ -188,8 +188,8 @@ class EBayAuctions:
 
 	def top_n_sorted_auctions(self, n: int, exclude: list[str] = []) -> list[dict[str, any]]:
 		items = [
-			item for cat in self._auctions for item in cat['items']
-			if not cat['exclude-from-top'] and item['itemId'] not in exclude
+			item for cat in self._auctions for item in cat["items"]
+			if not cat["exclude-from-top"] and item["itemId"] not in exclude
 		]
 		return EBayAuctions.top_n_sorted_auctions_static(items, n)
 
