@@ -1,7 +1,7 @@
 
 # Hobby Report
 
-**Hobby Report** is an example Python project that demonstrates how to create a _Drudge Report_-style website for collectors, called **Hobby Report**, using APIs and automation. 
+**Hobby Report** is an example Python project that demonstrates how to create a _Drudge Report_-style website for collectors, called **Hobby Report**, using APIs and automation.
 
 This project is designed as an **example of using OpenAI's Function Calling API**, showcasing its ability to clean up and extract structured data from eBay headlines and parse auction details programmatically. It integrates eBay data, RSS feeds, and other APIs to generate and refresh a fully functional website.
 
@@ -33,18 +33,21 @@ This project is designed as an **example of using OpenAI's Function Calling API*
 ### Installation
 
 1. Clone the repository:
+
    ```bash
    git clone https://github.com/yourusername/hobby-report.git
    cd hobby-report
    ```
 
 2. Create and activate a Python virtual environment:
+
    ```bash
    python3.12 -m venv venv
    source venv/bin/activate   # On Windows: venv\Scripts\activate
    ```
 
 3. Install the required dependencies:
+
    ```bash
    pip install -r requirements.txt
    ```
@@ -86,6 +89,7 @@ REDDIT_USER_AGENT = ''
 ```
 
 Edit the configuration files in the `config/` directory to customize sources and settings:
+
 - `rss-feeds.json`: List of RSS feeds to aggregate.
 - `auctions-ebay.json`: Filters and categories for eBay auctions.
 - `config.json`: General application settings.
@@ -156,6 +160,7 @@ Use the integrated terminal in Visual Studio Code to view debug output and logs.
 ## Example Use Case: OpenAI Function Calling API
 
 This project is a practical example of leveraging the **OpenAI Function Calling API** for structured data extraction. By processing raw eBay headlines, it demonstrates:
+
 - Cleaning up auction titles for better readability.
 - Parsing specific values, like item names or prices, programmatically.
 - Automating content aggregation tasks that traditionally required manual effort.
@@ -171,7 +176,6 @@ This project is a practical example of leveraging the **OpenAI Function Calling 
 - **`config/`**: Configuration files for API settings and RSS feeds.
 - **`templates/`**: HTML templates used to render the website.
 - **`logs/`**: Application logs for debugging.
-- **`venv/`**: Virtual environment (optional but recommended).
 
 ---
 
