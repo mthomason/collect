@@ -352,5 +352,5 @@ class CollectBot:
 		self.create_js()
 		self.backup_files()
 		self.update_edition()
-		self.upload_to_s3()
+		#self.upload_to_s3()
 		logger.info("Site generation complete.")

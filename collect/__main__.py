@@ -33,7 +33,8 @@ def main() -> int:
 	)
 	ebay_auctions.load_auctions()
 	collectbot.set_ebay_auctions(ebay_auctions)
-	collectbot.generate_site()
+	collectbot.generate_site()	# Uncomment the function inside `generate_site()`
+								#	to upload to s3().
 
 	return 0
 
