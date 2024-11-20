@@ -1,0 +1,57 @@
+[
+	{
+		"title": "Releases",
+		"urls": [
+			"https://www.beckett.com/news/feed/"
+		],
+		"interval": 54000,
+		"filename": "rss_beckett.json",
+		"max_results": 20
+	},
+	{
+		"title": "Luxury and Rare Items",
+		"urls": [
+			"https://robbreport.com/feed/"
+		],
+		"interval": 7200,
+		"filename": "rss_robbreport.json",
+		"max_results": 10
+	},
+	{
+		"title": "Sports Cards News",
+		"urls": [
+			"https://www.sportscollectorsdaily.com/category/sports-card-news/feed/"
+		],
+		"interval": 28800,
+		"filename": "rss_sports-collector-daily.json",
+		"max_results": 15
+	},
+	{
+		"title": "Comics News",
+		"urls": [
+			"https://comicbook.com/feed/rss/"
+		],
+		"interval": 6000,
+		"filename": "rss_comicbook-com.json",
+		"max_results": 15
+	},
+	{
+		"title": "Art & Antiques",
+		"urls": [
+			"https://puck.news/category/art/feed/",
+			"https://www.antiquesandthearts.com/feed/"
+		],
+		"interval": 28800,
+		"filename": "rss_art-and-antiques.json",
+		"max_results": 20
+	},
+	{
+		"title": "Coin News",
+		"urls": [
+			"https://coinweek.com/feed/"
+		],
+		"interval": 8000,
+		"filename": "rss_coin-week.json",
+		"max_results": 10
+	}
+]

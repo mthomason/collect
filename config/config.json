@@ -1,0 +1,22 @@
+{
+	"user-agent-name": "HobbyBot",
+	"user-agent-version": "1.0",
+	"directory-out": "httpd/",
+	"directory-template": "templates/",
+	"directory-cache": "cache/",
+	"directory-config": "config/",
+	"directory-images": "httpd/i/",
+	"output-file-name": "index.html",
+	"output-log-file": "logs/collectbot.log",
+	"directory-log": "logs/",
+	"last-modified": "2024-10-20T07:37:48.018841+00:00",
+	"edition": 236,
+	"ebay-refresh-time": 14400,
+	"aws-s3-bucket-name": "hobbyreport.net",
+	"aws-s3-region": "us-east-1",
+	"aws-s3-ensure-bucket": false,
+	"site-title": "Hobby Report",
+	"display-above-the-fold-header": "Most Watched Auctions",
+	"display-lead-headline-header": "Lead Headline",
+	"canonical-url": "https://hobbyreport.net"
+}

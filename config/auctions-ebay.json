@@ -1,0 +1,66 @@
+[
+	{
+		"id": "212",
+		"title": "Trading Cards",
+		"epn-category": "5339074447",
+		"count": 24,
+		"exclude-from-top": false,
+		"visible": true
+	},
+	{
+		"id": "183050",
+		"title": "Non Sports",
+		"epn-category": "5339074448",
+		"count": 20,
+		"exclude-from-top": false,
+		"visible": true
+	},
+	{
+		"id": "259104",
+		"title": "Comics",
+		"epn-category": "5339074449",
+		"count": 14,
+		"exclude-from-top": false,
+		"visible": true
+	},
+	{
+		"id": "14429",
+		"title": "Autographs",
+		"epn-category": "5339074451",
+		"count": 14,
+		"exclude-from-top": false,
+		"visible": true
+	},
+	{
+		"id": "253",
+		"title": "Coins",
+		"epn-category": "5339074452",
+		"count": 10,
+		"exclude-from-top": false,
+		"visible": true
+	},
+	{
+		"id": "31387",
+		"title": "Luxury Watches",
+		"epn-category": "5339074442",
+		"count": 6,
+		"exclude-from-top": true,
+		"visible": false
+	},
+	{
+		"id": "20081",
+		"title": "Antiques",
+		"epn-category": "5339074455",
+		"count": 6,
+		"exclude-from-top": false,
+		"visible": false
+	},
+	{
+		"id": "550",
+		"title": "Art",
+		"epn-category": "5339074456",
+		"count": 6,
+		"exclude-from-top": false,
+		"visible": false
+	}
+]

@@ -5,7 +5,6 @@ cache/
 backup/
 httpd/
 logs/
-config/
 
 # Minified Files
 *.min.js

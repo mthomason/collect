@@ -1,0 +1,39 @@
+[
+	{
+		"section": "Links",
+		"links": [
+			{
+				"name": "Prospect Hot List",
+				"url": "https://www.prospecthotlist.com/"
+			},
+			{
+				"name": "Beckett",
+				"url": "https://www.beckett.com/"
+			},
+			{
+				"name": "Sports Collectors Daily",
+				"url": "https://www.sportscollectorsdaily.com/"
+			},
+			{
+				"name": "Robb Report",
+				"url": "https://robbreport.com/"
+			},
+			{
+				"name": "Comic Book",
+				"url": "https://comicbook.com/"
+			},
+			{
+				"name": "Puck News",
+				"url": "https://puck.news/"
+			},
+			{
+				"name": "Antiques and the Arts",
+				"url": "https://www.antiquesandthearts.com/"
+			},
+			{
+				"name": "Coin Week",
+				"url": "https://coinweek.com/"
+			}
+		]
+	}
+]
