@@ -1,4 +1,7 @@
 {
+	"files.associations": {
+		"LICENSE": "plaintext"
+	},
 	"minify.css": {
 		"advanced": true,
 		"aggressiveMerging": true,
@@ -110,7 +113,8 @@
 	"python.defaultInterpreterPath": "/Users/michael/Projects/collect/venv/bin/python",
 	"cSpell.words": [
 		"datetime",
-		"endtime"
+		"endtime",
+		"Thomason"
 	],
 	"python.testing.unittestEnabled": true,
 	"python.testing.unittestArgs": [
