@@ -1,0 +1,24 @@
+{
+	"version": "0.2.0",
+	"configurations": [
+		{
+			"name": "Debug Python: __main__.py",
+			"type": "debugpy",
+			"request": "launch",
+			"module": "collect",
+			"console": "integratedTerminal",
+			"cwd": "${workspaceFolder}",
+			"stopOnEntry": false,
+			"justMyCode": false
+		},
+		{
+			"name": "Python: Unittest",
+			"type": "debugpy",
+			"request": "launch",
+			"module": "collect.tests.test_caching_robot_file_parser",
+			"cwd": "${workspaceFolder}",
+			"console": "integratedTerminal",
+			"justMyCode": false
+		}
+	]
+}

@@ -39,7 +39,6 @@ venv/
 .env/
 
 # IDE and editor files
-.vscode/
 .idea/
 *.suo
 *.ntvs*
